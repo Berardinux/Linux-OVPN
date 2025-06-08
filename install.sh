@@ -1,7 +1,7 @@
 #!/bin/bash
 
 if [ "$(id -u)" -ne 0 ]; then
-    echo "please run the script with sudo or as root"
+    echo "# (ERROR) please run the script with sudo or as root"
     exit 1
 else
     current_user=$SUDO_USER
@@ -9,6 +9,9 @@ fi
 
 if [ -d "/opt/LinuxOVPN" ]; then
     echo "# (ERROR) LinuxOVPN is already installed on your system."
+    echo "          If you want to reinstall run the uninstall.sh script"
+    echo "          in the scripts directory, and then run install.sh"
+    echo "          again."
     exit 1
 fi
 
@@ -81,9 +84,11 @@ fi
 
 if [ -z "$app" ] || [ "$app" = Y ] || [ "$app" = y ]; then
     sudo mkdir -p /opt/LinuxOVPN
-    sudo cp -r config css docs images src /opt/LinuxOVPN
+    sudo cp -r config css images ovpn scripts src /opt/LinuxOVPN
     touch "/home/$current_user/.local/share/applications/LinuxOVPN.desktop"
     sudo chmod -R 755 /opt/LinuxOVPN/
+    sudo chmod -R 777 /opt/LinuxOVPN/ovpn
+    sudo chmod -R 777 /opt/LinuxOVPN/config
     chmod 644 "/home/$current_user/.local/share/applications/LinuxOVPN.desktop"
     
     cat << EOM | sudo tee -a "/home/$current_user/.local/share/applications/LinuxOVPN.desktop" >/dev/null
