@@ -84,10 +84,10 @@ fi
 
 if [ -z "$app" ] || [ "$app" = Y ] || [ "$app" = y ]; then
     sudo mkdir -p /opt/LinuxOVPN
-    sudo cp -r config css images ovpn scripts src /opt/LinuxOVPN
+    sudo cp -r config css docs images scripts src /opt/LinuxOVPN
     touch "/home/$current_user/.local/share/applications/LinuxOVPN.desktop"
     sudo chmod -R 755 /opt/LinuxOVPN/
-    sudo chmod -R 777 /opt/LinuxOVPN/ovpn
+    sudo chmod -R 777 /opt/LinuxOVPN/docs/user_ovpn_files
     sudo chmod -R 777 /opt/LinuxOVPN/config
     chmod 644 "/home/$current_user/.local/share/applications/LinuxOVPN.desktop"
     
@@ -96,8 +96,8 @@ if [ -z "$app" ] || [ "$app" = Y ] || [ "$app" = y ]; then
 Type=Application
 Name=LinuxOVPN
 Comment=Linux OpenVPN Connect
-Icon=/opt/LinuxOVPN/images/openvpn.png
-Exec=python3 main.py
+Icon=/opt/LinuxOVPN/images/linuxovpn.png
+Exec=python3 LinuxOVPN
 Path=/opt/LinuxOVPN/src
 Terminal=false
 EOM

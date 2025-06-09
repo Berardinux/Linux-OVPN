@@ -1,6 +1,7 @@
 from types import MethodDescriptorType
 import gi
 import os
+import shutil
 gi.require_version("Gtk", "3.0")
 from gi.repository import Gtk, Gdk
 from gi.repository import GdkPixbuf
@@ -209,13 +210,17 @@ class ImportProfileWindowUIComponents:
         uris = selection.get_uris()
         if uris:
             file_uri = uris[0]
-            path = unquote(file_uri.replace("file://", "").strip())
-            print("Dropped file path: ", path)
+            ovpn_path = unquote(file_uri.replace("file://", "").strip())
+            print("Dropped file path: ", ovpn_path)
 
-        if ErrorCheck().error_check_for_drag_and_drop_ovpn_profile(path):
+        if ErrorCheck().error_check_for_drag_and_drop_ovpn_profile(ovpn_path):
             print("What you doing it failed")
             context.finish(False, False, time)
             return True
+
+        file_destination = "/opt/LinuxOVPN/docs/user_ovpn_files"
+        os.makedirs(file_destination, exist_ok=True)
+        shutil.copy(ovpn_path, file_destination)
 
         print("Nice it didnt fail!")
 
