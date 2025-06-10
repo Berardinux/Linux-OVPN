@@ -80,6 +80,29 @@
     box-shadow: none;
 }
 
+.add-footer-btn {
+    background-image:none;
+    background-color: #d4792d;
+    color: white;
+    font-weight: bold;
+    border-radius: 6px;
+    padding: 10px 20px;
+    min-width: 180px;
+    box-shadow: none;
+}
+
+.add-footer-btn-1 {
+    background-image: none;
+    background-color: transparent;
+    color: #2b6cb0;
+    font-weight: bold;
+    border: 2px solid #2b6cb0;
+    border-radius: 6px;
+    padding: 10px 20px;
+    min-width: 180px;
+    box-shadow: none;
+}
+
 .drop-area {
     border: 2px dashed #2b6cb0;
     border-radius: 8px;

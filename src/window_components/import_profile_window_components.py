@@ -49,9 +49,10 @@ class ImportProfileWindowUIComponents:
 
         return self.header_box
 
-    def create_import_profile_body_box(self):
+    def create_import_profile_body_box(self, callback):
         self.body_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10)
         self.body_box.set_name("custom-body")
+        self.import_callback = callback
 
         self.stack = Gtk.Stack()
         self.stack.set_transition_type(Gtk.StackTransitionType.SLIDE_LEFT_RIGHT)
@@ -214,7 +215,6 @@ class ImportProfileWindowUIComponents:
             print("Dropped file path: ", ovpn_path)
 
         if ErrorCheck().error_check_for_drag_and_drop_ovpn_profile(ovpn_path):
-            print("What you doing it failed")
             context.finish(False, False, time)
             return True
 
@@ -222,7 +222,7 @@ class ImportProfileWindowUIComponents:
         os.makedirs(file_destination, exist_ok=True)
         shutil.copy(ovpn_path, file_destination)
 
-        print("Nice it didnt fail!")
+        self.import_callback()
 
         context.finish(True, False, time)
         return True

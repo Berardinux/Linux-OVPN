@@ -10,10 +10,11 @@ class ImportedProfileWindowUIComponents:
         self.header_box = None
         self.header_label = None
         self.body_box = None
+        self.footer_box = None
         self.config=ReadWriteJSON().read_config()
         self.theme = self.config.get("theme", "light")
 
-    def imported_profile_header_box(self, callback):
+    def create_imported_profile_header_box(self, callback):
         self.header_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
         self.header_box.set_size_request(500, 55)
         self.header_box.set_name("custom-header")
@@ -45,7 +46,7 @@ class ImportedProfileWindowUIComponents:
 
         return self.header_box
 
-    def imported_profile_body_box(self):
+    def create_imported_profile_body_box(self):
         self.body_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
         self.body_box.set_name("custom-body")
 
@@ -53,7 +54,7 @@ class ImportedProfileWindowUIComponents:
         
         return self.body_box
 
-    def imported_profile_footer_box(self):
+    def create_imported_profile_footer_box(self):
         self.footer_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
         self.footer_box.set_size_request(500, 40)
         self.footer_box.set_name("custom-footer")
@@ -62,14 +63,19 @@ class ImportedProfileWindowUIComponents:
 
         # Footer button
         profiles_button = Gtk.Button(label="PROFILES")
-        profiles_button.get_style_context().add_class("add-wide-footer-btn-1")
-        profiles_button.set_margin(20)
+        profiles_button.get_style_context().add_class("add-footer-btn-1")
+        profiles_button.set_margin_bottom(20)
+        profiles_button.set_margin_left(20)
+        profiles_button.set_margin_right(3)
         self.footer_box.pack_start(profiles_button, False, False, 0)
 
         connect_button = Gtk.Button(label="CONNECT")
-        connect_button.get_style_context().add_class("add-wide-footer-btn-0")
-        connect_button.set_margin(20)
+        connect_button.get_style_context().add_class("add-footer-btn")
+        connect_button.set_margin_bottom(20)
+        connect_button.set_margin_right(20)
         self.footer_box.pack_start(connect_button, False, False, 0)
+
+        return self.footer_box
 
 
 

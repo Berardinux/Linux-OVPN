@@ -11,6 +11,7 @@ from window_components.cert_and_tok_window_components import CertAndTokWindowUIC
 from window_components.add_proxy_window_components import AddProxyWindowUIComponents
 from window_components.proxies_window_components import ProxiesWindowUIComponents
 from window_components.import_profile_window_components import ImportProfileWindowUIComponents
+from window_components.imported_profile_window_components import ImportedProfileWindowUIComponents
 from window_components.logs_window_components import LogsWindowUIComponents
 
 class WindowUIComponents:
@@ -162,11 +163,22 @@ class InitWindows:
     def init_import_profile_window(self):
         imp_ui = ImportProfileWindowUIComponents()
         import_profile_header_box = imp_ui.create_import_profile_header_box(callback=self.callback.profiles_window)
-        import_profile_body_box = imp_ui.create_import_profile_body_box()
+        import_profile_body_box = imp_ui.create_import_profile_body_box(callback=self.callback.imported_profile_window)
         import_profile_view = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         import_profile_view.pack_start(import_profile_header_box, False, False, 0)
         import_profile_view.pack_start(import_profile_body_box, True, True, 0)
         self.stack.add_named(import_profile_view, "import_profile")
+
+    def init_imported_profile_window(self):
+        imped_ui = ImportedProfileWindowUIComponents()
+        imported_profile_header_box = imped_ui.create_imported_profile_header_box(callback=self.callback.import_profile_window)
+        imported_profile_body_box = imped_ui.create_imported_profile_body_box()
+        imported_profile_footer_box = imped_ui.create_imported_profile_footer_box()
+        imported_profile_view = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        imported_profile_view.pack_start(imported_profile_header_box, False, False, 0)
+        imported_profile_view.pack_start(imported_profile_body_box, True, True, 0)
+        imported_profile_view.pack_start(imported_profile_footer_box, False, False, 0)
+        self.stack.add_named(imported_profile_view, "imported_profile")
 
     def init_logs_window(self):
         log_ui = LogsWindowUIComponents()
