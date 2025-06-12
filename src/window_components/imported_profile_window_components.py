@@ -47,7 +47,7 @@ class ImportedProfileWindowUIComponents:
 
         return self.header_box
 
-    def create_imported_profile_body_box(self):
+    def create_imported_profile_body_box(self, name_without_ext, remote_host):
         self.body_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10)
         self.body_box.set_halign(Gtk.Align.START)
         self.body_box.set_valign(Gtk.Align.START)
@@ -62,11 +62,11 @@ class ImportedProfileWindowUIComponents:
         profile_name.set_halign(Gtk.Align.START)
         self.body_box.pack_start(profile_name, False, False, 0)
 
-        entry_profile_name = Gtk.Entry()
-        entry_profile_name.set_text("berardinux.com [Berardinux]")
-        entry_profile_name.get_style_context().add_class("entry")
-        entry_profile_name.set_size_request(420, -1)
-        self.body_box.pack_start(entry_profile_name, False, False, 0)
+        self.entry_profile_name = Gtk.Entry()
+        self.entry_profile_name.set_text(f"{remote_host} [{name_without_ext}]")
+        self.entry_profile_name.get_style_context().add_class("entry")
+        self.entry_profile_name.set_size_request(420, -1)
+        self.body_box.pack_start(self.entry_profile_name, False, False, 0)
 
         server_name = Gtk.Label(label="Server Hostname (locked)")
         server_name.get_style_context().add_class("h6")
@@ -75,11 +75,11 @@ class ImportedProfileWindowUIComponents:
         server_name.set_margin_top(20)
         self.body_box.pack_start(server_name, False, False, 0)
 
-        entry_server_name = Gtk.Entry()
-        entry_server_name.set_text("berardinux.com")
-        entry_server_name.set_editable(False)
-        entry_server_name.get_style_context().add_class("entry")
-        self.body_box.pack_start(entry_server_name, False, False, 0)
+        self.entry_server_name = Gtk.Entry()
+        self.entry_server_name.set_text(remote_host)
+        self.entry_server_name.set_editable(False)
+        self.entry_server_name.get_style_context().add_class("entry")
+        self.body_box.pack_start(self.entry_server_name, False, False, 0)
 
         check_button_save_private_passwd = Gtk.CheckButton(label="Save Private Key Password")
         check_button_save_private_passwd.set_active(False)
@@ -99,7 +99,7 @@ class ImportedProfileWindowUIComponents:
         self.entry_private_key_password.set_size_request(380, -1)
 
         self.toggle_visibility_btn = Gtk.Button()
-        eye_icon = Gtk.Image.new_from_icon_name("view-reveal-symbolic", Gtk.IconSize.BUTTON)
+        eye_icon = Gtk.Image.new_from_icon_name("view-conceal-symbolic", Gtk.IconSize.BUTTON)
         self.toggle_visibility_btn.set_image(eye_icon)
         self.toggle_visibility_btn.set_relief(Gtk.ReliefStyle.NONE)
         self.toggle_visibility_btn.connect("clicked", self.on_toggle_password_visibility)
@@ -108,21 +108,31 @@ class ImportedProfileWindowUIComponents:
 
         return self.body_box
 
+    def set_profile_data(self, profile_name, remote_host):
+        if hasattr(self, 'entry_profile_name'):
+            self.entry_profile_name.set_text(profile_name)
+        if hasattr(self, 'entry_server_name'):
+            self.entry_server_name.set_text(remote_host)
+
     def on_toggle_password_visibility(self, button):
         current = self.entry_private_key_password.get_visibility()
         self.entry_private_key_password.set_visibility(not current)
+
+        icon_name = (
+                "view-reveal-symbolic" if not current else "view-conceal-symbolic"
+                )
+        new_icon = Gtk.Image.new_from_icon_name(icon_name, Gtk.IconSize.BUTTON)
+        self.toggle_visibility_btn.set_image(new_icon)
 
     def on_checkbox_toggled(self, button):
         if button.get_active():
             if self.password_row_cache == 0:
                 self.password_row.pack_start(self.entry_private_key_password, False, False, 0)
                 self.password_row.pack_start(self.toggle_visibility_btn, False, False, 0)
-            else:
-                self.password_row.show_all()
+                self.password_row_cache += 1
+            self.password_row.show_all()
         else:
             self.password_row.hide()
-
-        self.password_row_cache += 1
 
     def create_imported_profile_footer_box(self):
         self.footer_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)

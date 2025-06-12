@@ -57,7 +57,8 @@ class MainGUI:
         self.stack.set_visible_child_name("import_profile")
         self.win_ui.win.show_all()
 
-    def imported_profile_window(self, button=None):
+    def imported_profile_window(self, _, profile_name=None, remote_host=None):
+        self.init.update_imported_profile_data(profile_name, remote_host)
         self.stack.set_visible_child_name("imported_profile")
         self.win_ui.win.show_all()
 

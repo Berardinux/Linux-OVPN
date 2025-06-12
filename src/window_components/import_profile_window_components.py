@@ -7,6 +7,7 @@ from gi.repository import Gtk, Gdk
 from gi.repository import GdkPixbuf
 from urllib.parse import unquote
 from read_write_json import ReadWriteJSON
+from error import Error
 from error import ErrorCheck
 
 class ImportProfileWindowUIComponents:
@@ -201,11 +202,64 @@ class ImportProfileWindowUIComponents:
         button = Gtk.Button(label="BROWSE")
         button.get_style_context().add_class("add-wide-footer-btn-1")
         button.set_margin_bottom(20)
+        button.connect("clicked", self.on_browse_btn_click)
 
         footer_box.pack_start(button, False, False, 0)
         outer_box.pack_start(footer_box, False, False, 0)
 
         return outer_box
+
+    def on_browse_btn_click(self, button):
+        browse =  Gtk.FileChooserDialog(
+                title="Select your .ovpn file",
+                parent=None,
+                action=Gtk.FileChooserAction.OPEN,
+                )
+        browse.add_buttons(
+                "Cancel", Gtk.ResponseType.CANCEL,
+                "Open", Gtk.ResponseType.OK,
+                )
+
+        file_filter = Gtk.FileFilter()
+        file_filter.set_name("OVPN files")
+        file_filter.add_pattern("*.OVPN")
+        file_filter.add_pattern("*.OVPn")
+        file_filter.add_pattern("*.OVpN")
+        file_filter.add_pattern("*.OVpn")
+        file_filter.add_pattern("*.OvPN")
+        file_filter.add_pattern("*.OvPn")
+        file_filter.add_pattern("*.OvpN")
+        file_filter.add_pattern("*.Ovpn")
+        file_filter.add_pattern("*.oVPN")
+        file_filter.add_pattern("*.oVPn")
+        file_filter.add_pattern("*.oVpN")
+        file_filter.add_pattern("*.oVpn")
+        file_filter.add_pattern("*.ovPN")
+        file_filter.add_pattern("*.ovPn")
+        file_filter.add_pattern("*.ovpN")
+        file_filter.add_pattern("*.ovpn")
+        browse.add_filter(file_filter)
+
+        response = browse.run()
+
+        if response == Gtk.ResponseType.OK:
+            ovpn_path = browse.get_filename()
+            print("File selected: " + ovpn_path)
+
+            name_without_ext, remote_host = self.parse_ovpn_file(ovpn_path)
+
+            if not (remote_host):
+                print("No 'remote' directive found.")
+                Error().show_error_dialog("You .OVPN file is corrupted! Try anther or recreate it and try again.")
+                browse.destroy()
+                return True
+            else:
+                print("Remote hosts: ", remote_host)
+                print("Profile name: ", name_without_ext)
+
+            self.import_callback(self, name_without_ext, remote_host)
+
+        browse.destroy()
 
     def on_file_drop(self, widget, context, x, y, selection, info, time):
         uris = selection.get_uris()
@@ -222,7 +276,33 @@ class ImportProfileWindowUIComponents:
         os.makedirs(file_destination, exist_ok=True)
         shutil.copy(ovpn_path, file_destination)
 
-        self.import_callback()
+        name_without_ext, remote_host = self.parse_ovpn_file(ovpn_path)
+
+        if not (remote_host):
+            print("No 'remote' directive found.")
+            Error().show_error_dialog("You .OVPN file is corrupted! Try anther or recreate it and try again.")
+            return True
+        else:
+            print("Remote hosts: ", remote_host)
+            print("Profile name: ", name_without_ext)
+
+        self.import_callback(self, name_without_ext, remote_host)
 
         context.finish(True, False, time)
         return True
+
+    def parse_ovpn_file(self, ovpn_path):
+        filename_only = os.path.basename(ovpn_path)
+        name_without_ext = os.path.splitext(filename_only)[0]
+        remote_host = None
+
+        with open(ovpn_path, 'r') as f:
+            for line in f:
+                line = line.strip()
+                if line.startswith("remote "):
+                    parts = line.split()
+                    if len(parts) >= 2:
+                        remote_host = parts[1]
+                    break
+        
+        return name_without_ext, remote_host

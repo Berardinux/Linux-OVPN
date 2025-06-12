@@ -170,15 +170,21 @@ class InitWindows:
         self.stack.add_named(import_profile_view, "import_profile")
 
     def init_imported_profile_window(self):
-        imped_ui = ImportedProfileWindowUIComponents()
-        imported_profile_header_box = imped_ui.create_imported_profile_header_box(callback=self.callback.import_profile_window)
-        imported_profile_body_box = imped_ui.create_imported_profile_body_box()
-        imported_profile_footer_box = imped_ui.create_imported_profile_footer_box()
+        self.imped_ui = ImportedProfileWindowUIComponents()
+        imported_profile_header_box = self.imped_ui.create_imported_profile_header_box(callback=self.callback.import_profile_window)
+        imported_profile_body_box = self.imped_ui.create_imported_profile_body_box(
+                name_without_ext="", remote_host=""
+                )
+        imported_profile_footer_box = self.imped_ui.create_imported_profile_footer_box()
         imported_profile_view = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         imported_profile_view.pack_start(imported_profile_header_box, False, False, 0)
         imported_profile_view.pack_start(imported_profile_body_box, True, True, 0)
         imported_profile_view.pack_start(imported_profile_footer_box, False, False, 0)
         self.stack.add_named(imported_profile_view, "imported_profile")
+
+    def update_imported_profile_data(self, profile_name, remote_host):
+        if hasattr(self, 'imped_ui'):
+            self.imped_ui.set_profile_data(profile_name, remote_host)
 
     def init_logs_window(self):
         log_ui = LogsWindowUIComponents()
