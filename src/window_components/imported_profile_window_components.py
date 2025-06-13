@@ -14,6 +14,8 @@ class ImportedProfileWindowUIComponents:
         self.config=ReadWriteJSON().read_config()
         self.theme = self.config.get("theme", "light")
         self.password_row_cache = 0
+        self.profile_name
+        self.remote_host
 
     def create_imported_profile_header_box(self, callback):
         self.header_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
@@ -63,9 +65,9 @@ class ImportedProfileWindowUIComponents:
         self.body_box.pack_start(profile_name, False, False, 0)
 
         self.entry_profile_name = Gtk.Entry()
-        self.entry_profile_name.set_text(f"{remote_host} [{name_without_ext}]")
         self.entry_profile_name.get_style_context().add_class("entry")
         self.entry_profile_name.set_size_request(420, -1)
+        self.entry_profile_name.connect("changed", self.on_server_name_changed)
         self.body_box.pack_start(self.entry_profile_name, False, False, 0)
 
         server_name = Gtk.Label(label="Server Hostname (locked)")
@@ -76,7 +78,6 @@ class ImportedProfileWindowUIComponents:
         self.body_box.pack_start(server_name, False, False, 0)
 
         self.entry_server_name = Gtk.Entry()
-        self.entry_server_name.set_text(remote_host)
         self.entry_server_name.set_editable(False)
         self.entry_server_name.get_style_context().add_class("entry")
         self.body_box.pack_start(self.entry_server_name, False, False, 0)
@@ -108,11 +109,18 @@ class ImportedProfileWindowUIComponents:
 
         return self.body_box
 
+    def on_server_name_changed(self, entry):
+        self.profile_name = entry.get_text()
+        print("Profile name changed to: " + self.profile_name)
+
     def set_profile_data(self, profile_name, remote_host):
         if hasattr(self, 'entry_profile_name'):
-            self.entry_profile_name.set_text(profile_name)
+            self.entry_profile_name.set_text(remote_host + " [" + profile_name + "]")
         if hasattr(self, 'entry_server_name'):
             self.entry_server_name.set_text(remote_host)
+
+        self.profile_name = profile_name
+        self.remote_host = remote_host
 
     def on_toggle_password_visibility(self, button):
         current = self.entry_private_key_password.get_visibility()
@@ -147,15 +155,25 @@ class ImportedProfileWindowUIComponents:
         profiles_button.set_margin_bottom(20)
         profiles_button.set_margin_left(20)
         profiles_button.set_margin_right(3)
+        profiles_button.connect("clicked", self.on_profiles_btn_click)
         self.footer_box.pack_start(profiles_button, False, False, 0)
 
         connect_button = Gtk.Button(label="CONNECT")
         connect_button.get_style_context().add_class("add-footer-btn")
         connect_button.set_margin_bottom(20)
         connect_button.set_margin_right(20)
+        connect_button.connect("clicked", self.on_connect_btn_click)
         self.footer_box.pack_start(connect_button, False, False, 0)
 
         return self.footer_box
+
+    def on_profiles_btn_click(self, button):
+        ReadWriteJSON().update_config("profiles", self.profile_name, )
+        self.imported_callback
+
+    def on_connect_btn_click(self, button):
+
+        self.imported_callback
 
 
 

@@ -25,3 +25,20 @@ class ReadWriteJSON:
 
         with open(config_path, "w") as f:
             json.dump(config, f, indent = 4)
+
+    def update_config(self, key, value):
+        config = self.read_config()
+        config[key] = value
+        self.write_config(config)
+
+    def add_profile_to_config(self, profile_name, remote_host):
+        config = self.read_config()
+
+        if "profiles" not in config or not isinstance(config["profiles"], list):
+            config["profiles"] = []
+
+        for profile in config["profiles"]:
+            if profile.get("name") == profile_name and profile.get("host") == remote_host:
+                return
+
+

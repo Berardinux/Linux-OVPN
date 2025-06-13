@@ -79,7 +79,7 @@ class SettingsWindowUIComponents:
         theme_button_box.set_halign(Gtk.Align.START)
 
         themes = [("Light", "light"), ("Dark", "dark")]
-
+        
         for label_text, theme_value in themes:
             btn = Gtk.Button(label=label_text.upper())
             btn.set_name("settings-toggle-btn")
@@ -101,8 +101,7 @@ class SettingsWindowUIComponents:
 
     def on_theme_clicked(self, button, theme_value):
         print(f"Theme selected: {theme_value}")
-        self.config["theme"] = theme_value
-        ReadWriteJSON().write_config(self.config)
+        ReadWriteJSON().update_config("theme", theme_value)
 
         for btn in self.theme_buttons:
             btn.get_style_context().remove_class("theme-selected")

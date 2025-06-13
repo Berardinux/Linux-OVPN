@@ -250,7 +250,7 @@ class ImportProfileWindowUIComponents:
 
             if not (remote_host):
                 print("No 'remote' directive found.")
-                Error().show_error_dialog("You .OVPN file is corrupted! Try anther or recreate it and try again.")
+                Error().show_error_dialog("You .OVPN file is corrupted! Try another or recreate it and try again.")
                 browse.destroy()
                 return True
             else:
@@ -280,7 +280,7 @@ class ImportProfileWindowUIComponents:
 
         if not (remote_host):
             print("No 'remote' directive found.")
-            Error().show_error_dialog("You .OVPN file is corrupted! Try anther or recreate it and try again.")
+            Error().show_error_dialog("You .OVPN file is corrupted! Try another or recreate it and try again.")
             return True
         else:
             print("Remote hosts: ", remote_host)
