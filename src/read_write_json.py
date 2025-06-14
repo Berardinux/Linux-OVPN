@@ -31,14 +31,21 @@ class ReadWriteJSON:
         config[key] = value
         self.write_config(config)
 
-    def add_profile_to_config(self, profile_name, remote_host):
+    def add_profile_to_config(self, profile_name, remote_host, used_passwd, passwd):
         config = self.read_config()
 
-        if "profiles" not in config or not isinstance(config["profiles"], list):
-            config["profiles"] = []
+        if "profiles" not in config or not isinstance(config["profiles"], dict):
+            config["profiles"] = {}
 
-        for profile in config["profiles"]:
-            if profile.get("name") == profile_name and profile.get("host") == remote_host:
+        if profile_name in config["profiles"]:
                 return
+
+        config["profiles"][profile_name] = {
+            "host": remote_host,
+            "used_passwd": used_passwd,
+            "passwd": passwd
+            }
+
+        self.write_config(config)
 
 

@@ -175,7 +175,7 @@ class InitWindows:
         imported_profile_body_box = self.imped_ui.create_imported_profile_body_box(
                 name_without_ext="", remote_host=""
                 )
-        imported_profile_footer_box = self.imped_ui.create_imported_profile_footer_box()
+        imported_profile_footer_box = self.imped_ui.create_imported_profile_footer_box(callback=self.callback.profiles_window)
         imported_profile_view = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         imported_profile_view.pack_start(imported_profile_header_box, False, False, 0)
         imported_profile_view.pack_start(imported_profile_body_box, True, True, 0)

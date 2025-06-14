@@ -256,6 +256,9 @@ class ImportProfileWindowUIComponents:
             else:
                 print("Remote hosts: ", remote_host)
                 print("Profile name: ", name_without_ext)
+                file_destination = "/opt/LinuxOVPN/docs/user_ovpn_files"
+                os.makedirs(file_destination, exist_ok=True)
+                shutil.copy(ovpn_path, file_destination)
 
             self.import_callback(self, name_without_ext, remote_host)
 
@@ -272,10 +275,6 @@ class ImportProfileWindowUIComponents:
             context.finish(False, False, time)
             return True
 
-        file_destination = "/opt/LinuxOVPN/docs/user_ovpn_files"
-        os.makedirs(file_destination, exist_ok=True)
-        shutil.copy(ovpn_path, file_destination)
-
         name_without_ext, remote_host = self.parse_ovpn_file(ovpn_path)
 
         if not (remote_host):
@@ -285,6 +284,9 @@ class ImportProfileWindowUIComponents:
         else:
             print("Remote hosts: ", remote_host)
             print("Profile name: ", name_without_ext)
+            file_destination = "/opt/LinuxOVPN/docs/user_ovpn_files"
+            os.makedirs(file_destination, exist_ok=True)
+            shutil.copy(ovpn_path, file_destination)
 
         self.import_callback(self, name_without_ext, remote_host)
 

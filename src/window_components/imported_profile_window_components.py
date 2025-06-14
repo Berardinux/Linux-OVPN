@@ -13,9 +13,11 @@ class ImportedProfileWindowUIComponents:
         self.footer_box = None
         self.config=ReadWriteJSON().read_config()
         self.theme = self.config.get("theme", "light")
-        self.password_row_cache = 0
-        self.profile_name
-        self.remote_host
+        self.password_row_initiate = 0
+        self.profile_name = ""
+        self.remote_host = ""
+        self.used_passwd = False
+        self.passwd = ""
 
     def create_imported_profile_header_box(self, callback):
         self.header_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
@@ -98,6 +100,7 @@ class ImportedProfileWindowUIComponents:
         self.entry_private_key_password.set_invisible_char("•")
         self.entry_private_key_password.get_style_context().add_class("entry")
         self.entry_private_key_password.set_size_request(380, -1)
+        self.entry_private_key_password.connect("changed", self.on_passwd_changed)
 
         self.toggle_visibility_btn = Gtk.Button()
         eye_icon = Gtk.Image.new_from_icon_name("view-conceal-symbolic", Gtk.IconSize.BUTTON)
@@ -112,6 +115,10 @@ class ImportedProfileWindowUIComponents:
     def on_server_name_changed(self, entry):
         self.profile_name = entry.get_text()
         print("Profile name changed to: " + self.profile_name)
+
+    def on_passwd_changed(self, entry):
+        self.passwd = entry.get_text()
+        print("Passwd changed to: " + self.passwd)
 
     def set_profile_data(self, profile_name, remote_host):
         if hasattr(self, 'entry_profile_name'):
@@ -134,20 +141,23 @@ class ImportedProfileWindowUIComponents:
 
     def on_checkbox_toggled(self, button):
         if button.get_active():
-            if self.password_row_cache == 0:
+            if self.password_row_initiate == 0:
                 self.password_row.pack_start(self.entry_private_key_password, False, False, 0)
                 self.password_row.pack_start(self.toggle_visibility_btn, False, False, 0)
-                self.password_row_cache += 1
+                self.password_row_initiate += 1
             self.password_row.show_all()
+            self.used_passwd = True
         else:
             self.password_row.hide()
+            self.used_passwd = False
 
-    def create_imported_profile_footer_box(self):
+    def create_imported_profile_footer_box(self, callback):
         self.footer_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
         self.footer_box.set_size_request(500, 40)
         self.footer_box.set_name("custom-footer")
         self.footer_box.set_valign(Gtk.Align.END)
         self.footer_box.set_halign(Gtk.Align.CENTER)
+        self.imported_callback = callback
 
         # Footer button
         profiles_button = Gtk.Button(label="PROFILES")
@@ -168,12 +178,13 @@ class ImportedProfileWindowUIComponents:
         return self.footer_box
 
     def on_profiles_btn_click(self, button):
-        ReadWriteJSON().update_config("profiles", self.profile_name, )
-        self.imported_callback
+        ReadWriteJSON().add_profile_to_config(self.profile_name, self.remote_host, self.used_passwd, self.passwd)
+        self.imported_callback()
 
     def on_connect_btn_click(self, button):
+        ReadWriteJSON().add_profile_to_config(self.profile_name, self.remote_host, self.used_passwd, self.passwd)
 
-        self.imported_callback
+        self.imported_callback()
 
 
 
