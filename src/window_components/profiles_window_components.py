@@ -53,9 +53,58 @@ class ProfilesWindowUIComponents:
         return self.header_box
 
     def create_profiles_body_box(self):
-        self.body_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
+        self.body_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10)
         self.body_box.set_name("custom-body")
+        self.body_box.set_margin_top(50)
+        self.body_box.set_margin_left(40)
+        self.body_box.set_margin_right(40)
+
+        config = ReadWriteJSON().read_config()
+        self.profiles = config.get("profiles", {})
+
+        for profile_name, profile_data in self.profiles.items():
+            row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
+            row.set_margin_bottom(20)
+
+            vpn_profile_switch = Gtk.Switch()
+            vpn_profile_switch.set_halign(Gtk.Align.START)
+            vpn_profile_switch.set_name(profile_name)
+            vpn_profile_switch.connect("state-set", self.on_profile_button_click, profile_name, profile_data)
+
+            profile_name_label = Gtk.Label(label=profile_name)
+            profile_name_label.get_style_context().add_class("h5")
+            profile_name_label.get_style_context().add_class("color3")
+            profile_name_label.set_halign(Gtk.Align.CENTER)
+            profile_name_label.set_hexpand(True)
+
+            edit_profile_button = Gtk.Button()
+            edit_profile_button.set_relief(Gtk.ReliefStyle.NONE)
+            edit_icon = Gtk.Image.new_from_icon_name("document-edit-symbolic", Gtk.IconSize.BUTTON)
+            edit_profile_button.set_image(edit_icon)
+            edit_profile_button.set_tooltip_text("Edit profile")
+            edit_profile_button.connect("clicked", self.on_edit_profile_button_click, profile_name, profile_data)
+
+            row.pack_start(vpn_profile_switch, False, False, 0)
+            row.pack_start(profile_name_label, True, True, 0)
+            row.pack_start(edit_profile_button, False, False, 0)
+            self.body_box.pack_start(row, False, False, 0)
+
         return self.body_box
+
+    def on_edit_profile_button_click(self, button, profile_name, profile_data):
+        print("Edit button clicked { ")
+        print("Profile name: " + profile_name)
+        print("Profile data: ", profile_data)
+        print("}")
+
+    def on_profile_button_click(self, switch, state, profile_name, profile_data):
+        if state:
+            print("Profile name: " + profile_name)
+            print("Profile data: ", profile_data)
+        else:
+            print("Switch is off")
+
+        return False
 
     def create_profiles_footer_box(self, callback):
         self.footer_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)

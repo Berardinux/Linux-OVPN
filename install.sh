@@ -86,6 +86,7 @@ if [ -z "$app" ] || [ "$app" = Y ] || [ "$app" = y ]; then
     sudo mkdir -p /opt/LinuxOVPN
     sudo cp -r config css docs images scripts src /opt/LinuxOVPN
     touch "/home/$current_user/.local/share/applications/LinuxOVPN.desktop"
+    sudo chown -R $current_user:$current_user /opt/LinuxOVPN
     sudo chmod -R 755 /opt/LinuxOVPN/
     sudo chmod -R 777 /opt/LinuxOVPN/docs/user_ovpn_files
     sudo chmod -R 777 /opt/LinuxOVPN/config
