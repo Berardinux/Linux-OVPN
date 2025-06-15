@@ -14,6 +14,7 @@ class ImportedProfileWindowUIComponents:
         self.config=ReadWriteJSON().read_config()
         self.theme = self.config.get("theme", "light")
         self.password_row_initiate = 0
+        self.filename = ""
         self.profile_name = ""
         self.remote_host = ""
         self.used_passwd = False
@@ -35,7 +36,7 @@ class ImportedProfileWindowUIComponents:
         back_button.set_image(view_icon)
         back_button.set_relief(Gtk.ReliefStyle.NONE)
         back_button.get_style_context().add_class("back-btn")
-        back_button.connect("clicked", callback)
+        back_button.connect("clicked", lambda btn: self.back_button_cleanup(callback))
         self.header_box.pack_start(back_button, False, False, 0)
 
         # Header label
@@ -50,6 +51,12 @@ class ImportedProfileWindowUIComponents:
         self.header_box.pack_start(spacer, False, False, 0)
 
         return self.header_box
+
+    def back_button_cleanup(self, callback):
+        file_path = "/opt/LinuxOVPN/docs/user_ovpn_files/" + self.filename
+        if os.path.exists(file_path):
+            os.remove(file_path)
+        callback()
 
     def create_imported_profile_body_box(self, name_without_ext, remote_host):
         self.body_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10)
@@ -120,12 +127,13 @@ class ImportedProfileWindowUIComponents:
         self.passwd = entry.get_text()
         print("Passwd changed to: " + self.passwd)
 
-    def set_profile_data(self, profile_name, remote_host):
+    def set_profile_data(self, filename, profile_name, remote_host):
         if hasattr(self, 'entry_profile_name'):
             self.entry_profile_name.set_text(remote_host + " [" + profile_name + "]")
         if hasattr(self, 'entry_server_name'):
             self.entry_server_name.set_text(remote_host)
 
+        self.filename = filename
         self.profile_name = profile_name
         self.remote_host = remote_host
 

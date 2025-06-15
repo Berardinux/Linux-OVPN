@@ -182,9 +182,9 @@ class InitWindows:
         imported_profile_view.pack_start(imported_profile_footer_box, False, False, 0)
         self.stack.add_named(imported_profile_view, "imported_profile")
 
-    def update_imported_profile_data(self, profile_name, remote_host):
+    def update_imported_profile_data(self, filename, profile_name, remote_host):
         if hasattr(self, 'imped_ui'):
-            self.imped_ui.set_profile_data(profile_name, remote_host)
+            self.imped_ui.set_profile_data(filename, profile_name, remote_host)
 
     def init_logs_window(self):
         log_ui = LogsWindowUIComponents()

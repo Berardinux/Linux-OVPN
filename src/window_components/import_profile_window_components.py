@@ -246,7 +246,7 @@ class ImportProfileWindowUIComponents:
             ovpn_path = browse.get_filename()
             print("File selected: " + ovpn_path)
 
-            name_without_ext, remote_host = self.parse_ovpn_file(ovpn_path)
+            filename_only, name_without_ext, remote_host = self.parse_ovpn_file(ovpn_path)
 
             if not (remote_host):
                 print("No 'remote' directive found.")
@@ -260,7 +260,7 @@ class ImportProfileWindowUIComponents:
                 os.makedirs(file_destination, exist_ok=True)
                 shutil.copy(ovpn_path, file_destination)
 
-            self.import_callback(self, name_without_ext, remote_host)
+            self.import_callback(self, filename_only, name_without_ext, remote_host)
 
         browse.destroy()
 
@@ -275,7 +275,7 @@ class ImportProfileWindowUIComponents:
             context.finish(False, False, time)
             return True
 
-        name_without_ext, remote_host = self.parse_ovpn_file(ovpn_path)
+        filename_only, name_without_ext, remote_host = self.parse_ovpn_file(ovpn_path)
 
         if not (remote_host):
             print("No 'remote' directive found.")
@@ -288,7 +288,7 @@ class ImportProfileWindowUIComponents:
             os.makedirs(file_destination, exist_ok=True)
             shutil.copy(ovpn_path, file_destination)
 
-        self.import_callback(self, name_without_ext, remote_host)
+        self.import_callback(self, filename_only, name_without_ext, remote_host)
 
         context.finish(True, False, time)
         return True
@@ -307,4 +307,4 @@ class ImportProfileWindowUIComponents:
                         remote_host = parts[1]
                     break
         
-        return name_without_ext, remote_host
+        return filename_only, name_without_ext, remote_host

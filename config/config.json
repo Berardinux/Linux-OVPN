@@ -1,10 +1,10 @@
 {
     "theme": "dark",
     "profiles": {
-        "JP-OVPN": {
-            "host": "139.162.67.93",
-            "used_passwd": true,
-            "passwd": "hello world"
+        "MomsVPN": {
+            "host": "67.186.42.213",
+            "used_passwd": false,
+            "passwd": ""
         }
     }
 }
