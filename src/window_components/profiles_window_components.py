@@ -55,9 +55,17 @@ class ProfilesWindowUIComponents:
     def create_profiles_body_box(self):
         self.body_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10)
         self.body_box.set_name("custom-body")
-        self.body_box.set_margin_top(50)
+        self.body_box.set_margin_top(20)
         self.body_box.set_margin_left(40)
         self.body_box.set_margin_right(40)
+
+        disconnected_label = Gtk.Label(label="DISCONNECTED")
+        disconnected_label.get_style_context().add_class("h5")
+        disconnected_label.get_style_context().add_class("color3")
+        disconnected_label.set_halign(Gtk.Align.START)
+        disconnected_label.set_valign(Gtk.Align.START)
+        disconnected_label.set_margin_bottom(20)
+        self.body_box.pack_start(disconnected_label, False, False, 0)
 
         config = ReadWriteJSON().read_config()
         self.profiles = config.get("profiles", {})
@@ -69,19 +77,22 @@ class ProfilesWindowUIComponents:
             vpn_profile_switch = Gtk.Switch()
             vpn_profile_switch.set_halign(Gtk.Align.START)
             vpn_profile_switch.set_name(profile_name)
+            vpn_profile_switch.set_size_request(70, -1)
             vpn_profile_switch.connect("state-set", self.on_profile_button_click, profile_name, profile_data)
 
             profile_name_label = Gtk.Label(label=profile_name)
             profile_name_label.get_style_context().add_class("h5")
-            profile_name_label.get_style_context().add_class("color3")
+            profile_name_label.get_style_context().add_class("color1")
             profile_name_label.set_halign(Gtk.Align.CENTER)
             profile_name_label.set_hexpand(True)
 
             edit_profile_button = Gtk.Button()
             edit_profile_button.set_relief(Gtk.ReliefStyle.NONE)
             edit_icon = Gtk.Image.new_from_icon_name("document-edit-symbolic", Gtk.IconSize.BUTTON)
+            edit_icon.set_pixel_size(24)
             edit_profile_button.set_image(edit_icon)
             edit_profile_button.set_tooltip_text("Edit profile")
+            edit_profile_button.get_style_context().add_class("color1")
             edit_profile_button.connect("clicked", self.on_edit_profile_button_click, profile_name, profile_data)
 
             row.pack_start(vpn_profile_switch, False, False, 0)
@@ -89,7 +100,13 @@ class ProfilesWindowUIComponents:
             row.pack_start(edit_profile_button, False, False, 0)
             self.body_box.pack_start(row, False, False, 0)
 
-        return self.body_box
+        scrolled_window = Gtk.ScrolledWindow()
+        scrolled_window.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
+        scrolled_window.set_propagate_natural_height(False)
+        scrolled_window.set_vexpand(True)
+        scrolled_window.add(self.body_box)
+
+        return scrolled_window
 
     def on_edit_profile_button_click(self, button, profile_name, profile_data):
         print("Edit button clicked { ")

@@ -191,11 +191,4 @@ class ImportedProfileWindowUIComponents:
 
     def on_connect_btn_click(self, button):
         ReadWriteJSON().add_profile_to_config(self.profile_name, self.remote_host, self.used_passwd, self.passwd)
-
         self.imported_callback()
-
-
-
-
-
-

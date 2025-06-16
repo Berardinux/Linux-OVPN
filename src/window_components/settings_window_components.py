@@ -8,8 +8,7 @@ from load_css import ThemeManager
 from gi.repository import GLib
 
 class SettingsWindowUIComponents:
-    def __init__(self, callback):
-        self.callback = callback
+    def __init__(self):
         self.header_box = None
         self.header_label = None
         self.body_box = None
@@ -49,7 +48,7 @@ class SettingsWindowUIComponents:
 
         return self.header_box
 
-    def create_settings_body_box(self):
+    def create_settings_body_box(self, callback):
         scroll = Gtk.ScrolledWindow()
         scroll.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
         scroll.set_hexpand(True)
@@ -83,7 +82,7 @@ class SettingsWindowUIComponents:
         for label_text, theme_value in themes:
             btn = Gtk.Button(label=label_text.upper())
             btn.set_name("settings-toggle-btn")
-            btn.connect("clicked", self.on_theme_clicked, theme_value)
+            btn.connect("clicked", self.on_theme_clicked, theme_value, callback)
             if theme_value == self.theme:
                 btn.get_style_context().add_class("theme-selected")
             self.theme_buttons.append(btn)
@@ -94,12 +93,11 @@ class SettingsWindowUIComponents:
         container.pack_start(theme_button_box, False, False, 0)
         # }
 
-
         scroll.add(container)
         self.body_box = scroll
         return self.body_box
 
-    def on_theme_clicked(self, button, theme_value):
+    def on_theme_clicked(self, button, theme_value, callback):
         print(f"Theme selected: {theme_value}")
         ReadWriteJSON().update_config("theme", theme_value)
 
@@ -110,6 +108,6 @@ class SettingsWindowUIComponents:
 
         ThemeManager().apply_theme(theme_value)
 
-        GLib.idle_add(self.callback.reload_theme_dependent_pages, theme_value)  
+        GLib.idle_add(callback, theme_value)  
 
         

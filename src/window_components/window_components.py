@@ -122,14 +122,29 @@ class InitWindows:
         statistics_view.pack_start(statistics_body_box, True, True, 0)
         self.stack.add_named(statistics_view, "statistics")
 
-    def init_settings_window(self, callback):
-        set_ui = SettingsWindowUIComponents(callback)
+    def init_settings_window(self):
+        set_ui = SettingsWindowUIComponents()
         settings_header_box = set_ui.create_settings_header_box(callback=self.callback.profiles_window)
-        settings_body_box = set_ui.create_settings_body_box()
+        settings_body_box = set_ui.create_settings_body_box(callback=self.reload_theme_dependent_pages)
         settings_view = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         settings_view.pack_start(settings_header_box, False, False, 0)
         settings_view.pack_start(settings_body_box, True, True, 0)
         self.stack.add_named(settings_view, "settings")
+
+    def reload_theme_dependent_pages(self, theme_value):
+        cert_widget = self.stack.get_child_by_name("cert_and_tok")
+        if cert_widget:
+            self.stack.remove(cert_widget)
+        proxies_widget = self.stack.get_child_by_name("proxies")
+        if proxies_widget:
+            self.stack.remove(proxies_widget)
+        import_widget = self.stack.get_child_by_name("import_profile")
+        if import_widget:
+            self.stack.remove(import_widget)
+
+        self.init_cert_and_tok_window()
+        self.init_proxies_window()
+        self.init_import_profile_window()
 
     def init_cert_and_tok_window(self):
         cer_ui = CertAndTokWindowUIComponents()
@@ -175,7 +190,7 @@ class InitWindows:
         imported_profile_body_box = self.imped_ui.create_imported_profile_body_box(
                 name_without_ext="", remote_host=""
                 )
-        imported_profile_footer_box = self.imped_ui.create_imported_profile_footer_box(callback=self.callback.profiles_window)
+        imported_profile_footer_box = self.imped_ui.create_imported_profile_footer_box(callback=self.reload_profiles_window)
         imported_profile_view = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         imported_profile_view.pack_start(imported_profile_header_box, False, False, 0)
         imported_profile_view.pack_start(imported_profile_body_box, True, True, 0)
@@ -185,6 +200,14 @@ class InitWindows:
     def update_imported_profile_data(self, filename, profile_name, remote_host):
         if hasattr(self, 'imped_ui'):
             self.imped_ui.set_profile_data(filename, profile_name, remote_host)
+
+    def reload_profiles_window(self):
+        prof_widget = self.stack.get_child_by_name("profiles")
+        if prof_widget:
+            self.stack.remove(prof_widget)
+
+        self.init_profiles_window()
+        self.callback.profiles_window() 
 
     def init_logs_window(self):
         log_ui = LogsWindowUIComponents()
