@@ -5,6 +5,15 @@ window {
     background-color: magenta;
 }
 
+.transparent-button {
+    background-image: none;
+    background-color: rgba( 0, 0, 0, 0);
+    box-shadow: none;
+    border: none;
+    outline: none;
+    color: inherit;
+}
+
 .h1 {
     font-size: 60px;
     font-weight: bold;

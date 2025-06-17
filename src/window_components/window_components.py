@@ -12,6 +12,7 @@ from window_components.add_proxy_window_components import AddProxyWindowUICompon
 from window_components.proxies_window_components import ProxiesWindowUIComponents
 from window_components.import_profile_window_components import ImportProfileWindowUIComponents
 from window_components.imported_profile_window_components import ImportedProfileWindowUIComponents
+from window_components.edit_profile_window_components import EditProfileWindowUIComponents
 from window_components.logs_window_components import LogsWindowUIComponents
 
 class WindowUIComponents:
@@ -74,7 +75,9 @@ class InitWindows:
                 hamburger_button_clicked=pro_ui.open_sidebar, 
                 list_button_clicked=self.callback.logs_window
                 )
-        body_box = pro_ui.create_profiles_body_box()
+        body_box = pro_ui.create_profiles_body_box(
+                edit_profile_button_clicked=self.callback.edit_profile_window
+                )
         footer_box = pro_ui.create_profiles_footer_box(callback=self.callback.import_profile_window)
         profiles_view = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         profiles_view.pack_start(header_box, False, False, 0)
@@ -208,6 +211,15 @@ class InitWindows:
 
         self.init_profiles_window()
         self.callback.profiles_window() 
+
+    def init_edit_profile_window(self):
+        edpr_ui = EditProfileWindowUIComponents()
+        edit_profile_header_box = edpr_ui.create_edit_profile_header_box(callback=self.callback.profiles_window)
+        edit_profile_body_box = edpr_ui.create_edit_profile_body_box()
+        edit_profile_view = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        edit_profile_view.pack_start(edit_profile_header_box, False, False, 0)
+        edit_profile_view.pack_start(edit_profile_body_box, True, True, 0)
+        self.stack.add_named(edit_profile_view, "edit_profile")
 
     def init_logs_window(self):
         log_ui = LogsWindowUIComponents()

@@ -19,6 +19,7 @@ class MainGUI:
         self.win_ui = self.init.win_ui
 
         self.init.init_logs_window()
+        self.init.init_edit_profile_window()
         self.init.init_imported_profile_window()
         self.init.init_import_profile_window()
         self.init.init_add_proxy_window()
@@ -60,6 +61,10 @@ class MainGUI:
     def imported_profile_window(self, _, filename=None, profile_name=None, remote_host=None):
         self.init.update_imported_profile_data(filename, profile_name, remote_host)
         self.stack.set_visible_child_name("imported_profile")
+        self.win_ui.win.show_all()
+
+    def edit_profile_window(self, button=None):
+        self.stack.set_visible_child_name("edit_profile")
         self.win_ui.win.show_all()
 
     def logs_window(self, button=None):

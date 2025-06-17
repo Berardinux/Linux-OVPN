@@ -52,7 +52,7 @@ class ProfilesWindowUIComponents:
 
         return self.header_box
 
-    def create_profiles_body_box(self):
+    def create_profiles_body_box(self, edit_profile_button_clicked):
         self.body_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10)
         self.body_box.set_name("custom-body")
         self.body_box.set_margin_top(20)
@@ -93,7 +93,8 @@ class ProfilesWindowUIComponents:
             edit_profile_button.set_image(edit_icon)
             edit_profile_button.set_tooltip_text("Edit profile")
             edit_profile_button.get_style_context().add_class("color1")
-            edit_profile_button.connect("clicked", self.on_edit_profile_button_click, profile_name, profile_data)
+            edit_profile_button.connect("clicked", edit_profile_button_clicked) 
+            #edit_profile_button.connect("clicked", self.on_edit_profile_button_click, profile_name, profile_data)
 
             row.pack_start(vpn_profile_switch, False, False, 0)
             row.pack_start(profile_name_label, True, True, 0)
