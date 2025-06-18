@@ -31,7 +31,7 @@ class ReadWriteJSON:
         config[key] = value
         self.write_config(config)
 
-    def add_profile_to_config(self, profile_name, remote_host, used_passwd, passwd):
+    def add_profile_to_config(self, profile_name, remote_host, used_passwd, passwd, filename):
         config = self.read_config()
 
         if "profiles" not in config or not isinstance(config["profiles"], dict):
@@ -43,7 +43,8 @@ class ReadWriteJSON:
         config["profiles"][profile_name] = {
             "host": remote_host,
             "used_passwd": used_passwd,
-            "passwd": passwd
+            "passwd": passwd,
+            "filename": filename
             }
 
         self.write_config(config)

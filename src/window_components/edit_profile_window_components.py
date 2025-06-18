@@ -12,6 +12,13 @@ class EditProfileWindowUIComponents:
         self.body_box = None
         self.config=ReadWriteJSON().read_config()
         self.theme = self.config.get("theme", "light")
+        self.password_row_initiate = 0
+        self.password_changed = 0
+        self.profile_name = ""
+        self.host = ""
+        self.used_passwd = ""
+        self.passwd = ""
+        self.filename = ""
 
     def create_edit_profile_header_box(self, callback):
         self.header_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
@@ -51,8 +58,142 @@ class EditProfileWindowUIComponents:
         print("Saved")
 
     def create_edit_profile_body_box(self):
-        self.body_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
+        self.body_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10)
+        self.body_box.set_halign(Gtk.Align.START)
+        self.body_box.set_valign(Gtk.Align.START)
+        self.body_box.set_margin_top(20)
+        self.body_box.set_margin_left(40)
+        self.body_box.set_margin_right(40)
         self.body_box.set_name("custom-body")
+
+        profile_name = Gtk.Label(label="Profile Name")
+        profile_name.get_style_context().add_class("h6")
+        profile_name.get_style_context().add_class("color1")
+        profile_name.set_halign(Gtk.Align.START)
+        self.body_box.pack_start(profile_name, False, False, 0)
+
+        self.entry_profile_name = Gtk.Entry()
+        self.entry_profile_name.get_style_context().add_class("entry")
+        self.entry_profile_name.set_size_request(420, -1)
+        self.entry_profile_name.connect("changed", self.on_server_name_changed)
+        self.body_box.pack_start(self.entry_profile_name, False, False, 0)
+
+        server_name = Gtk.Label(label = "Server Hostname (locked)")
+        server_name.get_style_context().add_class("h6")
+        server_name.get_style_context().add_class("color1")
+        server_name.set_halign(Gtk.Align.START)
+        server_name.set_margin_top(20)
+        self.body_box.pack_start(server_name, False, False, 0)
+
+        self.entry_server_name = Gtk.Entry()
+        self.entry_server_name.set_editable(False)
+        self.entry_server_name.get_style_context().add_class("entry")
+        self.body_box.pack_start(self.entry_server_name, False, False, 0)
+
+        self.check_button_save_private_passwd = Gtk.CheckButton(label="Save Private Key Password")
+        self.check_button_save_private_passwd.get_style_context().add_class("h6")
+        self.check_button_save_private_passwd.get_style_context().add_class("color1")
+        self.check_button_save_private_passwd.set_margin_top(20)
+        self.check_button_save_private_passwd.connect("toggled", self.on_checkbox_toggled)
+        self.body_box.pack_start(self.check_button_save_private_passwd, False, False, 0)
+
+        self.password_row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=5)
+
+        self.entry_private_key_password = Gtk.Entry()
+        self.entry_private_key_password.set_placeholder_text("Private Key Password")
+        self.entry_private_key_password.set_visibility(False)
+        self.entry_private_key_password.set_invisible_char("•")
+        self.entry_private_key_password.get_style_context().add_class("entry")
+        self.entry_private_key_password.set_size_request(380, -1)
+        self.entry_private_key_password.connect("changed", self.on_passwd_changed)
+
+        self.toggle_visibility_btn = Gtk.Button()
+        eye_icon = Gtk.Image.new_from_icon_name("view-conceal-symbolic", Gtk.IconSize.BUTTON)
+        self.toggle_visibility_btn.set_image(eye_icon)
+        self.toggle_visibility_btn.set_relief(Gtk.ReliefStyle.NONE)
+        self.toggle_visibility_btn.connect("clicked", self.on_toggle_password_visibility)
+
+        self.body_box.pack_start(self.password_row, False, False, 0)
+
         return self.body_box
+
+    def on_server_name_changed(self, entry):
+        self.profile_name = entry.get_text()
+        print("Profile name changed to: " + self.profile_name)
+
+    def on_passwd_changed(self, entry):
+        self.passwd = entry.get_text()
+        print("Passwd changed to: " + self.passwd)
+        self.password_changed = 1
+
+
+    def set_profile_data(self, profile_name, profile_data):
+        self.profile_name = profile_name
+        self.host = profile_data.get("host")
+        self.used_passwd = profile_data.get("used_passwd")
+        self.passwd = profile_data.get("passwd")
+        self.filename = profile_data.get("filename")
+        
+        if hasattr(self, 'entry_profile_name'):
+            self.entry_profile_name.set_text(self.profile_name)
+        if hasattr(self, 'entry_server_name'):
+            self.entry_server_name.set_text(self.host)
+        if self.used_passwd:
+            self.check_button_save_private_passwd.set_active(True)
+            self.entry_private_key_password.set_text("••••••••••••")
+        else:
+            self.check_button_save_private_passwd.set_active(False)
+
+    def on_toggle_password_visibility(self, button):
+        current = self.entry_private_key_password.get_visibility()
+        self.entry_private_key_password.set_visibility(not current)
+
+        icon_name = (
+                "view-reveal-symbolic" if not current else "view-conceal-symbolic"
+                )
+        new_icon = Gtk.Image.new_from_icon_name(icon_name, Gtk.IconSize.BUTTON)
+        self.toggle_visibility_btn.set_image(new_icon)
+
+    def on_checkbox_toggled(self, button):
+        if button.get_active():
+            if self.password_row_initiate == 0:
+                self.password_row.pack_start(self.entry_private_key_password, False, False, 0)
+                self.password_row.pack_start(self.toggle_visibility_btn, False, False, 0)
+                self.password_row_initiate += 1
+            self.password_row.show_all()
+            self.used_passwd = False
+
+    def create_edit_profile_footer_box(self, callback):
+        self.footer_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
+        self.footer_box.set_size_request(500, 40)
+        self.footer_box.set_name("custom-footer")
+        self.footer_box.set_valign(Gtk.Align.END)
+        self.footer_box.set_halign(Gtk.Align.CENTER)
+        self.delete_profile_callback = callback
+
+        # Footer button
+        delete_profile_button = Gtk.Button(label="DELETE PROFILE")
+        delete_profile_button.get_style_context().add_class("add-footer-btn-1")
+        delete_profile_button.set_margin_bottom(20)
+        delete_profile_button.set_margin_left(20)
+        delete_profile_button.set_margin_right(3)
+        delete_profile_button.connect("clicked", self.on_delete_profiles_btn_click)
+        self.footer_box.pack_start(delete_profile_button, False, False, 0)
+
+        connect_button = Gtk.Button(label="CONNECT")
+        connect_button.get_style_context().add_class("add-footer-btn")
+        connect_button.set_margin_bottom(20)
+        connect_button.set_margin_right(20)
+        connect_button.connect("clicked", self.on_connect_btn_click)
+        self.footer_box.pack_start(connect_button, False, False, 0)
+
+        return self.footer_box
+
+    def on_delete_profiles_btn_click(self, button):
+        print("Delete clicked")
+        self.delete_profile_callback()
+
+    def on_connect_btn_click(self, button):
+        print("connect clicked")
 
 

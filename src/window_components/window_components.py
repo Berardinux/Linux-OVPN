@@ -115,6 +115,9 @@ class InitWindows:
                 statistics_callback=self.callback.statistics_window,
                 dimmer=self.profiles_dimmer
                 )
+    def update_edit_profile_data(self, profile_name, profile_data):
+        if hasattr(self, 'edpr_ui'):
+            self.edpr_ui.set_profile_data(profile_name, profile_data)
 
     def init_statistics_window(self):
         sta_ui = StatisticsWindowUIComponents()
@@ -213,12 +216,14 @@ class InitWindows:
         self.callback.profiles_window() 
 
     def init_edit_profile_window(self):
-        edpr_ui = EditProfileWindowUIComponents()
-        edit_profile_header_box = edpr_ui.create_edit_profile_header_box(callback=self.callback.profiles_window)
-        edit_profile_body_box = edpr_ui.create_edit_profile_body_box()
+        self.edpr_ui = EditProfileWindowUIComponents()
+        edit_profile_header_box = self.edpr_ui.create_edit_profile_header_box(callback=self.callback.profiles_window)
+        edit_profile_body_box = self.edpr_ui.create_edit_profile_body_box()
+        edit_profile_footer_box = self.edpr_ui.create_edit_profile_footer_box(callback=self.reload_profiles_window)
         edit_profile_view = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         edit_profile_view.pack_start(edit_profile_header_box, False, False, 0)
         edit_profile_view.pack_start(edit_profile_body_box, True, True, 0)
+        edit_profile_view.pack_start(edit_profile_footer_box, False, False, 0)
         self.stack.add_named(edit_profile_view, "edit_profile")
 
     def init_logs_window(self):

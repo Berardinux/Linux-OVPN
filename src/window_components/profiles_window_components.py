@@ -93,8 +93,13 @@ class ProfilesWindowUIComponents:
             edit_profile_button.set_image(edit_icon)
             edit_profile_button.set_tooltip_text("Edit profile")
             edit_profile_button.get_style_context().add_class("color1")
-            edit_profile_button.connect("clicked", edit_profile_button_clicked) 
-            #edit_profile_button.connect("clicked", self.on_edit_profile_button_click, profile_name, profile_data)
+            edit_profile_button.connect(
+                    "clicked", 
+                    self.on_edit_profile_button_click, 
+                    profile_name, 
+                    profile_data, 
+                    edit_profile_button_clicked
+                    ) 
 
             row.pack_start(vpn_profile_switch, False, False, 0)
             row.pack_start(profile_name_label, True, True, 0)
@@ -109,11 +114,12 @@ class ProfilesWindowUIComponents:
 
         return scrolled_window
 
-    def on_edit_profile_button_click(self, button, profile_name, profile_data):
+    def on_edit_profile_button_click(self, button, profile_name, profile_data, edit_profile_button_clicked):
         print("Edit button clicked { ")
         print("Profile name: " + profile_name)
         print("Profile data: ", profile_data)
         print("}")
+        edit_profile_button_clicked(self, profile_name, profile_data)
 
     def on_profile_button_click(self, switch, state, profile_name, profile_data):
         if state:

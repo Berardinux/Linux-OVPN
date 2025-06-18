@@ -29,7 +29,7 @@ class MainGUI:
         self.init.init_statistics_window()
         self.init.init_profiles_window()
         self.profiles_window()
- 
+
     def profiles_window(self, button=None):
         self.win_ui.win.show_all()
         self.stack.set_visible_child_name("profiles")
@@ -63,7 +63,8 @@ class MainGUI:
         self.stack.set_visible_child_name("imported_profile")
         self.win_ui.win.show_all()
 
-    def edit_profile_window(self, button=None):
+    def edit_profile_window(self, button=None, profile_name=None, profile_data=None):
+        self.init.update_edit_profile_data(profile_name, profile_data)
         self.stack.set_visible_child_name("edit_profile")
         self.win_ui.win.show_all()
 
