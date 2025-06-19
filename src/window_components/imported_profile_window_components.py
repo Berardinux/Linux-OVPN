@@ -76,6 +76,7 @@ class ImportedProfileWindowUIComponents:
         self.entry_profile_name = Gtk.Entry()
         self.entry_profile_name.get_style_context().add_class("entry")
         self.entry_profile_name.set_size_request(420, -1)
+        self.entry_profile_name.set_max_length(16)
         self.entry_profile_name.connect("changed", self.on_server_name_changed)
         self.body_box.pack_start(self.entry_profile_name, False, False, 0)
 
@@ -129,7 +130,7 @@ class ImportedProfileWindowUIComponents:
 
     def set_profile_data(self, filename, profile_name, remote_host):
         if hasattr(self, 'entry_profile_name'):
-            self.entry_profile_name.set_text(remote_host + " [" + profile_name + "]")
+            self.entry_profile_name.set_text(profile_name)
         if hasattr(self, 'entry_server_name'):
             self.entry_server_name.set_text(remote_host)
 

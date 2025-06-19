@@ -217,7 +217,10 @@ class InitWindows:
 
     def init_edit_profile_window(self):
         self.edpr_ui = EditProfileWindowUIComponents()
-        edit_profile_header_box = self.edpr_ui.create_edit_profile_header_box(callback=self.callback.profiles_window)
+        edit_profile_header_box = self.edpr_ui.create_edit_profile_header_box(
+                callback=self.callback.profiles_window,
+                save_profile_callback=self.reload_profiles_window
+                )
         edit_profile_body_box = self.edpr_ui.create_edit_profile_body_box()
         edit_profile_footer_box = self.edpr_ui.create_edit_profile_footer_box(callback=self.reload_profiles_window)
         edit_profile_view = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)

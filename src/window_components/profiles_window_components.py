@@ -53,6 +53,10 @@ class ProfilesWindowUIComponents:
         return self.header_box
 
     def create_profiles_body_box(self, edit_profile_button_clicked):
+        self.edit_profile_button_clicked = edit_profile_button_clicked
+        self.body_wrapper = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        self.body_wrapper.set_name("custom-body-wrapper")
+
         self.body_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10)
         self.body_box.set_name("custom-body")
         self.body_box.set_margin_top(20)
@@ -106,13 +110,67 @@ class ProfilesWindowUIComponents:
             row.pack_start(edit_profile_button, False, False, 0)
             self.body_box.pack_start(row, False, False, 0)
 
+        self.body_wrapper.pack_start(self.body_box, True, True, 0)
+
         scrolled_window = Gtk.ScrolledWindow()
         scrolled_window.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
         scrolled_window.set_propagate_natural_height(False)
         scrolled_window.set_vexpand(True)
-        scrolled_window.add(self.body_box)
+        scrolled_window.add(self.body_wrapper)
 
         return scrolled_window
+
+    def refresh_connected_view(self, profile_name, profile_data):
+        for child in self.body_wrapper.get_children():
+            self.body_wrapper.remove(child)
+
+        self.connected_body_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10)
+        self.connected_body_box.set_name("custom-body")
+        self.connected_body_box.set_margin_top(20)
+        self.connected_body_box.set_margin_left(40)
+        self.connected_body_box.set_margin_left(40)
+
+        connected_label = Gtk.Label(label="CONNECTED")
+        connected_label.get_style_context().add_class("h5")
+        connected_label.get_style_context().add_class("color3")
+        connected_label.set_halign(Gtk.Align.START)
+        connected_label.set_valign(Gtk.Align.START)
+        connected_label.set_margin_bottom(20)
+        self.connected_body_box.pack_start(connected_label, False, False, 0)
+
+        row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
+        row.set_margin_bottom(20)
+
+        vpn_profile_switch = Gtk.Switch()
+        vpn_profile_switch.set_active(True)
+        vpn_profile_switch.set_name(profile_name)
+        vpn_profile_switch.set_size_request(70, -1)
+        vpn_profile_switch.connect("state-set", self.on_profile_button_click, profile_name, profile_data)
+
+        profile_name_label = Gtk.Label(label=profile_name)
+        profile_name_label.get_style_context().add_class("h5")
+        profile_name_label.get_style_context().add_class("color1")
+        profile_name_label.set_halign(Gtk.Align.CENTER)
+        profile_name_label.set_hexpand(True)
+
+        row.pack_start(vpn_profile_switch, False, False, 0)
+        row.pack_start(profile_name_label, True, True, 0)
+        self.connected_body_box.pack_start(row, False, False, 0)
+
+        scrolled_window = Gtk.ScrolledWindow()
+        scrolled_window.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
+        scrolled_window.set_propagate_natural_height(False)
+        scrolled_window.set_vexpand(True)
+        scrolled_window.add(self.connected_body_box)
+
+        self.body_wrapper.pack_start(self.connected_body_box, True, True, 0)
+        self.body_wrapper.show_all()
+
+    def refresh_body_box(self):
+        for child in self.body_wrapper.get_children():
+            self.body_wrapper.remove(child)
+        self.create_profiles_body_box(self.edit_profile_button_clicked)
+
 
     def on_edit_profile_button_click(self, button, profile_name, profile_data, edit_profile_button_clicked):
         print("Edit button clicked { ")
@@ -125,9 +183,10 @@ class ProfilesWindowUIComponents:
         if state:
             print("Profile name: " + profile_name)
             print("Profile data: ", profile_data)
+            self.refresh_connected_view(profile_name, profile_data)
         else:
             print("Switch is off")
-
+            self.refresh_body_box()
         return False
 
     def create_profiles_footer_box(self, callback):

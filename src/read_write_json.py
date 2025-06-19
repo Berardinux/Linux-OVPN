@@ -49,4 +49,42 @@ class ReadWriteJSON:
 
         self.write_config(config)
 
+    def edit_profile_from_config(
+            self, 
+            old_profile_name, 
+            new_profile_name, 
+            remote_host, 
+            used_passwd, 
+            passwd, 
+            filename, 
+            password_changed
+            ):
+        config = self.read_config()
+
+        if "profiles" in config and old_profile_name in config["profiles"]:
+            profile_data = config["profiles"].pop(old_profile_name)
+
+            profile_data["host"] = remote_host
+
+            if password_changed:
+                profile_data["used_passwd"] = used_passwd
+                profile_data["passwd"] = passwd
+
+            profile_data["filename"] = filename
+
+            config ["profiles"][new_profile_name] = profile_data
+
+            self.write_config(config)
+            print(f"Profile renamed from '{old_profile_name}' to {new_profile_name}' and updated.")
+
+    def delete_profile_from_config(self, profile_name):
+        config = self.read_config()
+
+        if "profiles" in config and profile_name in config["profiles"]:
+            del config["profiles"][profile_name]
+            self.write_config(config)
+            print(f"Profile '{profile_name}' deleted from config.")
+        else:
+            print(f"Profile '{profile_name}' does not exist.")
+
 

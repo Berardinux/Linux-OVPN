@@ -14,16 +14,18 @@ class EditProfileWindowUIComponents:
         self.theme = self.config.get("theme", "light")
         self.password_row_initiate = 0
         self.password_changed = 0
-        self.profile_name = ""
+        self.old_profile_name = ""
+        self.new_profile_name = ""
         self.host = ""
         self.used_passwd = ""
         self.passwd = ""
         self.filename = ""
 
-    def create_edit_profile_header_box(self, callback):
+    def create_edit_profile_header_box(self, callback, save_profile_callback):
         self.header_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
         self.header_box.set_size_request(500, 55)
         self.header_box.set_name("custom-header")
+        self.save_profile_callback = save_profile_callback
       
         # Back button
         path = "../images/" + self.theme + "/ovpn_arrow.png"
@@ -55,7 +57,16 @@ class EditProfileWindowUIComponents:
         return self.header_box
 
     def on_save(self, button):
-        print("Saved")
+        ReadWriteJSON().edit_profile_from_config(
+                self.old_profile_name,
+                self.new_profile_name,
+                self.host,
+                self.used_passwd,
+                self.passwd,
+                self.filename,
+                self.password_changed
+                )
+        self.save_profile_callback()
 
     def create_edit_profile_body_box(self):
         self.body_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10)
@@ -75,6 +86,7 @@ class EditProfileWindowUIComponents:
         self.entry_profile_name = Gtk.Entry()
         self.entry_profile_name.get_style_context().add_class("entry")
         self.entry_profile_name.set_size_request(420, -1)
+        self.entry_profile_name.set_max_length(16)
         self.entry_profile_name.connect("changed", self.on_server_name_changed)
         self.body_box.pack_start(self.entry_profile_name, False, False, 0)
 
@@ -118,8 +130,8 @@ class EditProfileWindowUIComponents:
         return self.body_box
 
     def on_server_name_changed(self, entry):
-        self.profile_name = entry.get_text()
-        print("Profile name changed to: " + self.profile_name)
+        self.new_profile_name = entry.get_text()
+        print("Profile name changed to: " + self.new_profile_name)
 
     def on_passwd_changed(self, entry):
         self.passwd = entry.get_text()
@@ -128,21 +140,33 @@ class EditProfileWindowUIComponents:
 
 
     def set_profile_data(self, profile_name, profile_data):
-        self.profile_name = profile_name
+        self.old_profile_name = profile_name
         self.host = profile_data.get("host")
         self.used_passwd = profile_data.get("used_passwd")
         self.passwd = profile_data.get("passwd")
         self.filename = profile_data.get("filename")
         
         if hasattr(self, 'entry_profile_name'):
-            self.entry_profile_name.set_text(self.profile_name)
+            self.entry_profile_name.set_text(self.old_profile_name)
         if hasattr(self, 'entry_server_name'):
             self.entry_server_name.set_text(self.host)
+
+        print(self.used_passwd)
         if self.used_passwd:
             self.check_button_save_private_passwd.set_active(True)
             self.entry_private_key_password.set_text("••••••••••••")
+            if self.password_row_initiate == 0:
+                self.password_row.pack_start(self.entry_private_key_password, False, False, 0)
+                self.password_row.pack_start(self.toggle_visibility_btn, False, False, 0)
+                self.password_row_initiate += 1
+            self.password_row.show_all()
         else:
             self.check_button_save_private_passwd.set_active(False)
+            self.password_row.hide()
+            self.entry_private_key_password.set_text("")
+            for child in self.password_row.get_children():
+                self.password_row.remove(child)
+            self.password_row_initiate = 0
 
     def on_toggle_password_visibility(self, button):
         current = self.entry_private_key_password.get_visibility()
@@ -161,7 +185,13 @@ class EditProfileWindowUIComponents:
                 self.password_row.pack_start(self.toggle_visibility_btn, False, False, 0)
                 self.password_row_initiate += 1
             self.password_row.show_all()
+            self.used_passwd = True
+            self.password_changed = 1
+        else:
+            self.password_row.hide()
             self.used_passwd = False
+            self.passwd = ""
+            self.password_changed = 1
 
     def create_edit_profile_footer_box(self, callback):
         self.footer_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
@@ -190,7 +220,13 @@ class EditProfileWindowUIComponents:
         return self.footer_box
 
     def on_delete_profiles_btn_click(self, button):
-        print("Delete clicked")
+        file_path = f"/opt/LinuxOVPN/docs/user_ovpn_files/{self.filename}"
+        if os.path.exists(file_path):
+            os.remove(file_path)
+            print("File deleted successfully.")
+        else:
+            print(f"File does not exist: {file_path}")
+        ReadWriteJSON().delete_profile_from_config(self.old_profile_name)
         self.delete_profile_callback()
 
     def on_connect_btn_click(self, button):
