@@ -4,6 +4,7 @@ gi.require_version("Gtk", "3.0")
 from gi.repository import Gtk, Gdk
 from gi.repository import GdkPixbuf
 from read_write_json import ReadWriteJSON
+from window_components.graph_widget import VPNGraphWidget
 
 class ProfilesWindowUIComponents:
     def __init__(self):
@@ -54,42 +55,48 @@ class ProfilesWindowUIComponents:
 
     def create_profiles_body_box(self, edit_profile_button_clicked):
         self.edit_profile_button_clicked = edit_profile_button_clicked
-        self.body_wrapper = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
-        self.body_wrapper.set_name("custom-body-wrapper")
-
-        self.body_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10)
-        self.body_box.set_name("custom-body")
-        self.body_box.set_margin_top(20)
-        self.body_box.set_margin_left(40)
-        self.body_box.set_margin_right(40)
-
+    
+        if not self.body_box:
+            self.body_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10)
+            self.body_box.set_name("custom-body")
+            self.body_box.set_margin_top(20)
+            self.body_box.set_margin_left(40)
+            self.body_box.set_margin_right(40)
+    
+        # Clear previous content if any
+        for child in self.body_box.get_children():
+            self.body_box.remove(child)
+    
+        self.content_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10)
+        self.body_box.pack_start(self.content_box, True, True, 0)
+    
         disconnected_label = Gtk.Label(label="DISCONNECTED")
         disconnected_label.get_style_context().add_class("h5")
         disconnected_label.get_style_context().add_class("color3")
         disconnected_label.set_halign(Gtk.Align.START)
         disconnected_label.set_valign(Gtk.Align.START)
         disconnected_label.set_margin_bottom(20)
-        self.body_box.pack_start(disconnected_label, False, False, 0)
-
+        self.content_box.pack_start(disconnected_label, False, False, 0)
+    
         config = ReadWriteJSON().read_config()
         self.profiles = config.get("profiles", {})
-
+    
         for profile_name, profile_data in self.profiles.items():
             row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
             row.set_margin_bottom(20)
-
+    
             vpn_profile_switch = Gtk.Switch()
             vpn_profile_switch.set_halign(Gtk.Align.START)
             vpn_profile_switch.set_name(profile_name)
             vpn_profile_switch.set_size_request(70, -1)
             vpn_profile_switch.connect("state-set", self.on_profile_button_click, profile_name, profile_data)
-
+    
             profile_name_label = Gtk.Label(label=profile_name)
             profile_name_label.get_style_context().add_class("h5")
             profile_name_label.get_style_context().add_class("color1")
             profile_name_label.set_halign(Gtk.Align.CENTER)
             profile_name_label.set_hexpand(True)
-
+    
             edit_profile_button = Gtk.Button()
             edit_profile_button.set_relief(Gtk.ReliefStyle.NONE)
             edit_icon = Gtk.Image.new_from_icon_name("document-edit-symbolic", Gtk.IconSize.BUTTON)
@@ -97,38 +104,22 @@ class ProfilesWindowUIComponents:
             edit_profile_button.set_image(edit_icon)
             edit_profile_button.set_tooltip_text("Edit profile")
             edit_profile_button.get_style_context().add_class("color1")
-            edit_profile_button.connect(
-                    "clicked", 
-                    self.on_edit_profile_button_click, 
-                    profile_name, 
-                    profile_data, 
-                    edit_profile_button_clicked
-                    ) 
-
+            edit_profile_button.connect("clicked", self.on_edit_profile_button_click,
+                                        profile_name, profile_data, edit_profile_button_clicked)
+    
             row.pack_start(vpn_profile_switch, False, False, 0)
             row.pack_start(profile_name_label, True, True, 0)
             row.pack_start(edit_profile_button, False, False, 0)
-            self.body_box.pack_start(row, False, False, 0)
-
-        self.body_wrapper.pack_start(self.body_box, True, True, 0)
-
-        scrolled_window = Gtk.ScrolledWindow()
-        scrolled_window.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
-        scrolled_window.set_propagate_natural_height(False)
-        scrolled_window.set_vexpand(True)
-        scrolled_window.add(self.body_wrapper)
-
-        return scrolled_window
-
+            self.content_box.pack_start(row, False, False, 0)
+    
+        return self.body_box
+    
     def refresh_connected_view(self, profile_name, profile_data):
-        for child in self.body_wrapper.get_children():
-            self.body_wrapper.remove(child)
+        for child in self.body_box.get_children():
+            self.body_box.remove(child)
 
         self.connected_body_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10)
         self.connected_body_box.set_name("custom-body")
-        self.connected_body_box.set_margin_top(20)
-        self.connected_body_box.set_margin_left(40)
-        self.connected_body_box.set_margin_left(40)
 
         connected_label = Gtk.Label(label="CONNECTED")
         connected_label.get_style_context().add_class("h5")
@@ -144,7 +135,7 @@ class ProfilesWindowUIComponents:
         vpn_profile_switch = Gtk.Switch()
         vpn_profile_switch.set_active(True)
         vpn_profile_switch.set_name(profile_name)
-        vpn_profile_switch.set_size_request(70, -1)
+        vpn_profile_switch.set_size_request(70, 35)
         vpn_profile_switch.connect("state-set", self.on_profile_button_click, profile_name, profile_data)
 
         profile_name_label = Gtk.Label(label=profile_name)
@@ -153,9 +144,16 @@ class ProfilesWindowUIComponents:
         profile_name_label.set_halign(Gtk.Align.CENTER)
         profile_name_label.set_hexpand(True)
 
+        spacer = Gtk.Box()
+        spacer.set_size_request(36, -1)
+
         row.pack_start(vpn_profile_switch, False, False, 0)
         row.pack_start(profile_name_label, True, True, 0)
+        row.pack_start(spacer, False, False, 0)
         self.connected_body_box.pack_start(row, False, False, 0)
+
+        graph_widget = VPNGraphWidget()
+        self.connected_body_box.pack_start(graph_widget, True, True, 0)
 
         scrolled_window = Gtk.ScrolledWindow()
         scrolled_window.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
@@ -163,14 +161,8 @@ class ProfilesWindowUIComponents:
         scrolled_window.set_vexpand(True)
         scrolled_window.add(self.connected_body_box)
 
-        self.body_wrapper.pack_start(self.connected_body_box, True, True, 0)
-        self.body_wrapper.show_all()
-
-    def refresh_body_box(self):
-        for child in self.body_wrapper.get_children():
-            self.body_wrapper.remove(child)
-        self.create_profiles_body_box(self.edit_profile_button_clicked)
-
+        self.body_box.pack_start(scrolled_window, True, True, 0)
+        self.body_box.show_all()
 
     def on_edit_profile_button_click(self, button, profile_name, profile_data, edit_profile_button_clicked):
         print("Edit button clicked { ")
@@ -183,10 +175,15 @@ class ProfilesWindowUIComponents:
         if state:
             print("Profile name: " + profile_name)
             print("Profile data: ", profile_data)
+            for child in self.body_box.get_children():
+                self.body_box.remove(child)
             self.refresh_connected_view(profile_name, profile_data)
         else:
             print("Switch is off")
-            self.refresh_body_box()
+            for child in self.body_box.get_children():
+                self.body_box.remove(child)
+            self.create_profiles_body_box(self.edit_profile_button_clicked)
+            self.body_box.show_all()
         return False
 
     def create_profiles_footer_box(self, callback):

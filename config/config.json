@@ -1,23 +1,11 @@
 {
     "theme": "dark",
     "profiles": {
-        "JP-OVPN": {
+        "Berardinux": {
             "host": "139.162.67.93",
-            "used_passwd": true,
-            "passwd": "I Love cake",
-            "filename": "JP-OVPN.ovpn"
-        },
-        "Your MOM": {
-            "host": "berardinux.com",
             "used_passwd": false,
             "passwd": "",
-            "filename": "Berardinux.ovpn"
-        },
-        "0123456789123456": {
-            "host": "67.186.42.213",
-            "used_passwd": true,
-            "passwd": "I Love cake",
-            "filename": "MomsVPN.ovpn"
+            "filename": "JP-OVPN.ovpn"
         }
     }
 }
