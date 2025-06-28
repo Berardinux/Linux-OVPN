@@ -1,7 +1,3 @@
-import gi
-gi.require_version("Gtk", "3.0")
-from gi.repository import Gtk, Gdk
-
 import sys
 import os
 vendor_path = os.path.join(os.path.dirname(__file__), '..', 'docs', 'libs')
@@ -9,6 +5,10 @@ vendor_path = os.path.abspath(vendor_path)
 
 if vendor_path not in sys.path:
     sys.path.insert(0, vendor_path)
+
+import gi
+gi.require_version("Gtk", "3.0")
+from gi.repository import Gtk, Gdk
 
 from load_css import LoadCSS
 from read_write_json import ReadWriteJSON

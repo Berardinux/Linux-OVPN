@@ -1,11 +1,4 @@
 {
-    "theme": "dark",
-    "profiles": {
-        "Berardinux": {
-            "host": "139.162.67.93",
-            "used_passwd": false,
-            "passwd": "",
-            "filename": "JP-OVPN.ovpn"
-        }
-    }
+    "theme": "light",
+    "profiles": {}
 }

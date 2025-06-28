@@ -3,6 +3,8 @@ import os
 gi.require_version("Gtk", "3.0")
 from gi.repository import Gtk, Gdk
 from gi.repository import GdkPixbuf
+import subprocess
+import tempfile
 from read_write_json import ReadWriteJSON
 from window_components.graph_widget import VPNGraphWidget
 
@@ -15,6 +17,7 @@ class ProfilesWindowUIComponents:
         self.revealer = None
         self.config=ReadWriteJSON().read_config()
         self.theme = self.config.get("theme", "light")
+        self.turn_off_vpn_cancel = False
 
     def create_profiles_header_box(self, hamburger_button_clicked, list_button_clicked):
         self.header_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
@@ -171,21 +174,133 @@ class ProfilesWindowUIComponents:
         print("}")
         edit_profile_button_clicked(self, profile_name, profile_data)
 
+    def _recreate_profiles_ui(self):
+        """Clear and rebuild the profiles body box."""
+        for child in self.body_box.get_children():
+            self.body_box.remove(child)
+        self.create_profiles_body_box(self.edit_profile_button_clicked)
+        self.body_box.show_all()
+
     def on_profile_button_click(self, switch, state, profile_name, profile_data):
-        if state:
-            print("Profile name: " + profile_name)
-            print("Profile data: ", profile_data)
-            for child in self.body_box.get_children():
-                self.body_box.remove(child)
-            self.refresh_connected_view(profile_name, profile_data)
+        print(">>> on_profile_button_click called with state =", state)
+    
+        if self.turn_off_vpn_cancel:
+            self.turn_off_vpn_cancel = False
+            return True
+        elif state:
+            print("User clicked ON")
+    
+            used_passwd = profile_data.get("used_passwd")
+            passwd = profile_data.get("passwd")
+            filename = profile_data.get("filename")
+            vpn_path = os.path.join(
+                "/opt/LinuxOVPN/docs/user_ovpn_files", filename
+            )
+   
+            temp_pass_file = None
+
+            try:
+                if used_passwd:
+                    temp_pass_file = tempfile.NamedTemporaryFile(delete=False, mode="w")
+                    temp_pass_file.write(passwd + "\n")
+                    temp_pass_file.close()
+                    openvpn_args = ["pkexec", "openvpn", "--config", vpn_path, "--askpass", temp_pass_file.name]
+                else:
+                    openvpn_args = ["pkexec", "openvpn", "--config", vpn_path]
+    
+                process = subprocess.Popen(
+                    openvpn_args,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.STDOUT,
+                    text=True,
+                    bufsize=1,
+                    universal_newlines=True
+                )
+    
+                vpn_initialized = False
+                for line in process.stdout:
+                    print(line, end="")
+                    if "Initialization Sequence Completed" in line:
+                        vpn_initialized = True
+                        break
+    
+                    if process.poll() is not None:
+                        if process.returncode != 0:
+                            print("pkexec canceled or failed.")
+                            self._recreate_profiles_ui()
+                            return True
+                        else:
+                            break
+    
+                if not vpn_initialized:
+                    print("VPN did not initialize properly.")
+                    self._recreate_profiles_ui()
+                    return True
+    
+                print("Started VPN process with PID:", process.pid)
+                self.vpn_process = process
+    
+                switch.set_active(True)
+    
+                for child in self.body_box.get_children():
+                    self.body_box.remove(child)
+                self.refresh_connected_view(profile_name, profile_data)
+    
+                return True
+    
+            except Exception as e:
+                print("Error launching OpenVPN:", e)
+                self._recreate_profiles_ui()
+                return True
+
+            finally:
+                if used_passwd and temp_pass_file:
+                    try:
+                        os.unlink(temp_pass_file.name)
+                        print("Deleted temp password file: ", temp_pass_file.name)
+                    except Exception as e:
+                        print("Could not delete temp password file: ", e)
+
         else:
             print("Switch is off")
+        
+            if hasattr(self, "vpn_process") and self.vpn_process:
+                pid = str(self.vpn_process.pid)
+                kill_args = ["pkexec", "kill", "-9", pid]
+
+                process = subprocess.Popen(
+                    kill_args,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.STDOUT,
+                    text=True,
+                )
+        
+                output = ""
+                for line in process.stdout:
+                    print(line, end="")
+                    output += line
+        
+                process.wait()
+        
+                if process.returncode != 0:
+                    print("pkexec canceled or failed. VPN still running.")
+                    self.turn_off_vpn_cancel = True
+                    switch.set_active(True)
+                    return True
+        
+                print("VPN process stopped.")
+                self.vpn_process = None
+        
+                switch.set_active(False)
+        
             for child in self.body_box.get_children():
                 self.body_box.remove(child)
             self.create_profiles_body_box(self.edit_profile_button_clicked)
             self.body_box.show_all()
-        return False
+        
+            return True
 
+ 
     def create_profiles_footer_box(self, callback):
         self.footer_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
         self.footer_box.set_size_request(500, 100)

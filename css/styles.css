@@ -5,6 +5,14 @@ window {
     background-color: magenta;
 }
 
+.logs-scrolled-window {
+    border-bottom-left-radius: 16px;
+    border-bottom-right-radius: 16px;
+    background-color: transparent;
+    border: 1px solid #444;
+    padding: 10px;
+}
+
 .transparent-button {
     background-image: none;
     background-color: rgba( 0, 0, 0, 0);

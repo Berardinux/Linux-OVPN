@@ -231,6 +231,7 @@ class InitWindows:
 
     def init_logs_window(self):
         log_ui = LogsWindowUIComponents()
+        log_ui.start_redirecting_output()
         logs_header_box = log_ui.create_logs_header_box(callback=self.callback.profiles_window)
         logs_body_box = log_ui.create_logs_body_box()
         logs_view = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
