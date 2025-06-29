@@ -3,6 +3,7 @@ import os
 gi.require_version("Gtk", "3.0")
 from gi.repository import Gtk, Gdk
 from gi.repository import GdkPixbuf
+from datetime import datetime
 import subprocess
 import tempfile
 from read_write_json import ReadWriteJSON
@@ -181,9 +182,13 @@ class ProfilesWindowUIComponents:
         self.create_profiles_body_box(self.edit_profile_button_clicked)
         self.body_box.show_all()
 
+# <div>
+
     def on_profile_button_click(self, switch, state, profile_name, profile_data):
         print(">>> on_profile_button_click called with state =", state)
-    
+        timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+        status_path = f"/tmp/openvpn-status-{profile_name}-{timestamp}.log"
+
         if self.turn_off_vpn_cancel:
             self.turn_off_vpn_cancel = False
             return True
@@ -204,9 +209,20 @@ class ProfilesWindowUIComponents:
                     temp_pass_file = tempfile.NamedTemporaryFile(delete=False, mode="w")
                     temp_pass_file.write(passwd + "\n")
                     temp_pass_file.close()
-                    openvpn_args = ["pkexec", "openvpn", "--config", vpn_path, "--askpass", temp_pass_file.name]
+                    openvpn_args = [
+                            "pkexec", "openvpn", 
+                            "--config", vpn_path, 
+                            "--askpass", temp_pass_file.name,
+                            "--status", status_path, "1",
+                            "--status-output-mode", "644"
+                            ]
                 else:
-                    openvpn_args = ["pkexec", "openvpn", "--config", vpn_path]
+                    openvpn_args = [
+                            "pkexec", "openvpn", 
+                            "--config", vpn_path,
+                            "--status", status_path, "1",
+                            "--status-output-mode", "644"
+                            ]
     
                 process = subprocess.Popen(
                     openvpn_args,
@@ -297,10 +313,11 @@ class ProfilesWindowUIComponents:
                 self.body_box.remove(child)
             self.create_profiles_body_box(self.edit_profile_button_clicked)
             self.body_box.show_all()
-        
+
             return True
 
- 
+# </div>
+
     def create_profiles_footer_box(self, callback):
         self.footer_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
         self.footer_box.set_size_request(500, 100)
