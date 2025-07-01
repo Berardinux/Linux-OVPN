@@ -37,38 +37,14 @@
 
 #include "errlevel.h"
 #include "error.h"
-#include "mock_msg.h"
 
 unsigned int x_debug_level = 0; /* Default to (almost) no debugging output */
-unsigned int print_x_debug_level = 0;
-
 bool fatal_error_triggered = false;
-
-char mock_msg_buf[MOCK_MSG_BUF];
-
 
 void
 mock_set_debug_level(int level)
 {
     x_debug_level = level;
-}
-
-int
-mock_get_debug_level(void)
-{
-    return x_debug_level;
-}
-
-void
-mock_set_print_debug_level(int level)
-{
-    print_x_debug_level = level;
-}
-
-int
-get_debug_level(void)
-{
-    return x_debug_level;
 }
 
 void
@@ -80,14 +56,8 @@ x_msg_va(const unsigned int flags, const char *format,
         fatal_error_triggered = true;
         printf("FATAL ERROR:");
     }
-    CLEAR(mock_msg_buf);
-    vsnprintf(mock_msg_buf, sizeof(mock_msg_buf), format, arglist);
-
-    if ((flags & M_DEBUG_LEVEL) <= print_x_debug_level)
-    {
-        printf("%s", mock_msg_buf);
-        printf("\n");
-    }
+    vprintf(format, arglist);
+    printf("\n");
 }
 
 void

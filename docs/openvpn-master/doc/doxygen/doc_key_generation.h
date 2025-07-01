@@ -95,11 +95,11 @@
  * to supply cryptographically strong pseudo-random data.  The following links
  * contain more information on this subject:
  * - For OpenSSL's \c RAND_bytes() function:
- *   https://docs.openssl.org/master/man3/RAND_bytes/#rand_bytes
+ *   http://www.openssl.org/docs/crypto/RAND_bytes.html
  * - For OpenSSL's pseudo-random number generating system:
- *   https://docs.openssl.org/master/man7/RAND/#rand
+ *   http://www.openssl.org/docs/crypto/rand.html
  * - For OpenSSL's support for external crypto modules:
- *   https://docs.openssl.org/master/man7/provider/#provider
+ *   http://www.openssl.org/docs/crypto/engine.html
  *
  * In mbed TLS, the Havege random number generator is used. For details, see
  * the mbed TLS documentation.

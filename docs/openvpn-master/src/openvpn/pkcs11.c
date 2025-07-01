@@ -5,7 +5,7 @@
  *             packet encryption, packet authentication, and
  *             packet compression.
  *
- *  Copyright (C) 2002-2025 OpenVPN Inc <sales@openvpn.net>
+ *  Copyright (C) 2002-2024 OpenVPN Inc <sales@openvpn.net>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License version 2
@@ -201,7 +201,7 @@ _pkcs11_openvpn_token_prompt(
     CLEAR(token_resp);
     token_resp.defined = false;
     token_resp.nocache = true;
-    snprintf(
+    openvpn_snprintf(
         token_resp.username,
         sizeof(token_resp.username),
         "Please insert %s token",
@@ -246,7 +246,7 @@ _pkcs11_openvpn_pin_prompt(
 
     ASSERT(token!=NULL);
 
-    snprintf(prompt, sizeof(prompt), "%s token", token->label);
+    openvpn_snprintf(prompt, sizeof(prompt), "%s token", token->label);
 
     token_pass.defined = false;
     token_pass.nocache = true;
@@ -720,7 +720,7 @@ tls_ctx_use_pkcs11(
 
         id_resp.defined = false;
         id_resp.nocache = true;
-        snprintf(
+        openvpn_snprintf(
             id_resp.username,
             sizeof(id_resp.username),
             "Please specify PKCS#11 id to use"

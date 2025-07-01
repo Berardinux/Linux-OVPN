@@ -5,7 +5,7 @@
  *             packet encryption, packet authentication, and
  *             packet compression.
  *
- *  Copyright (C) 2002-2025 OpenVPN Inc <sales@openvpn.net>
+ *  Copyright (C) 2002-2024 OpenVPN Inc <sales@openvpn.net>
  *  Copyright (C) 2010-2021 Fox Crypto B.V. <openvpn@foxcrypto.com>
  *
  *  This program is free software; you can redistribute it and/or modify
@@ -23,8 +23,7 @@
  */
 
 /**
- * @file
- * Control Channel Verification Module
+ * @file Control Channel Verification Module
  */
 
 #ifdef HAVE_CONFIG_H
@@ -47,6 +46,9 @@
 #include "auth_token.h"
 #include "push.h"
 #include "ssl_util.h"
+
+/** Maximum length of common name */
+#define TLS_USERNAME_LEN 64
 
 static void
 string_mod_remap_name(char *str)
@@ -82,7 +84,10 @@ tls_deauthenticate(struct tls_multi *multi)
     }
 }
 
-void
+/*
+ * Set the given session's common_name
+ */
+static void
 set_common_name(struct tls_session *session, const char *common_name)
 {
     if (session->common_name)
@@ -147,14 +152,11 @@ tls_lock_username(struct tls_multi *multi, const char *username)
 {
     if (multi->locked_username)
     {
-        /* If the username has been overridden, we accept both the original
-         * username and the changed username */
-        if (strcmp(username, multi->locked_username) != 0
-            &&  (!multi->locked_original_username || strcmp(username, multi->locked_original_username) != 0))
+        if (!username || strcmp(username, multi->locked_username))
         {
             msg(D_TLS_ERRORS, "TLS Auth Error: username attempted to change from '%s' to '%s' -- tunnel disabled",
                 multi->locked_username,
-                username);
+                np(username));
 
             /* disable the tunnel */
             tls_deauthenticate(multi);
@@ -163,7 +165,10 @@ tls_lock_username(struct tls_multi *multi, const char *username)
     }
     else
     {
-        multi->locked_username = string_alloc(username, NULL);
+        if (username)
+        {
+            multi->locked_username = string_alloc(username, NULL);
+        }
     }
     return true;
 }
@@ -398,7 +403,7 @@ verify_peer_cert(const struct tls_options *opt, openvpn_x509_cert_t *peer_cert,
  */
 static void
 verify_cert_set_env(struct env_set *es, openvpn_x509_cert_t *peer_cert, int cert_depth,
-                    const char *subject,
+                    const char *subject, const char *common_name,
                     const struct x509_track *x509_track)
 {
     char envname[64];
@@ -416,32 +421,38 @@ verify_cert_set_env(struct env_set *es, openvpn_x509_cert_t *peer_cert, int cert
     }
 
     /* export subject name string as environmental variable */
-    snprintf(envname, sizeof(envname), "tls_id_%d", cert_depth);
+    openvpn_snprintf(envname, sizeof(envname), "tls_id_%d", cert_depth);
     setenv_str(es, envname, subject);
+
+#if 0
+    /* export common name string as environmental variable */
+    openvpn_snprintf(envname, sizeof(envname), "tls_common_name_%d", cert_depth);
+    setenv_str(es, envname, common_name);
+#endif
 
     /* export X509 cert fingerprints */
     {
         struct buffer sha1 = x509_get_sha1_fingerprint(peer_cert, &gc);
         struct buffer sha256 = x509_get_sha256_fingerprint(peer_cert, &gc);
 
-        snprintf(envname, sizeof(envname), "tls_digest_%d", cert_depth);
+        openvpn_snprintf(envname, sizeof(envname), "tls_digest_%d", cert_depth);
         setenv_str(es, envname,
                    format_hex_ex(BPTR(&sha1), BLEN(&sha1), 0, 1, ":", &gc));
 
-        snprintf(envname, sizeof(envname), "tls_digest_sha256_%d",
-                 cert_depth);
+        openvpn_snprintf(envname, sizeof(envname), "tls_digest_sha256_%d",
+                         cert_depth);
         setenv_str(es, envname,
                    format_hex_ex(BPTR(&sha256), BLEN(&sha256), 0, 1, ":", &gc));
     }
 
     /* export serial number as environmental variable */
     serial = backend_x509_get_serial(peer_cert, &gc);
-    snprintf(envname, sizeof(envname), "tls_serial_%d", cert_depth);
+    openvpn_snprintf(envname, sizeof(envname), "tls_serial_%d", cert_depth);
     setenv_str(es, envname, serial);
 
     /* export serial number in hex as environmental variable */
     serial = backend_x509_get_serial_hex(peer_cert, &gc);
-    snprintf(envname, sizeof(envname), "tls_serial_hex_%d", cert_depth);
+    openvpn_snprintf(envname, sizeof(envname), "tls_serial_hex_%d", cert_depth);
     setenv_str(es, envname, serial);
 
     gc_free(&gc);
@@ -509,7 +520,7 @@ verify_cert_call_plugin(const struct plugin_list *plugins, struct env_set *es,
  */
 static result_t
 verify_cert_call_command(const char *verify_command, struct env_set *es,
-                         int cert_depth, char *subject)
+                         int cert_depth, openvpn_x509_cert_t *cert, char *subject)
 {
     int ret;
     struct gc_arena gc = gc_new();
@@ -558,7 +569,7 @@ verify_check_crl_dir(const char *crl_dir, openvpn_x509_cert_t *cert,
         goto cleanup;
     }
 
-    if (!snprintf(fn, sizeof(fn), "%s%c%s", crl_dir, PATH_SEPARATOR, serial))
+    if (!openvpn_snprintf(fn, sizeof(fn), "%s%c%s", crl_dir, PATH_SEPARATOR, serial))
     {
         msg(D_HANDSHAKE, "VERIFY CRL: filename overflow");
         goto cleanup;
@@ -735,7 +746,8 @@ verify_cert(struct tls_session *session, openvpn_x509_cert_t *cert, int cert_dep
         }
     }
     /* export certificate values to the environment */
-    verify_cert_set_env(opt->es, cert, cert_depth, subject, opt->x509_track);
+    verify_cert_set_env(opt->es, cert, cert_depth, subject, common_name,
+                        opt->x509_track);
 
     /* export current untrusted IP */
     setenv_untrusted(session);
@@ -754,7 +766,7 @@ verify_cert(struct tls_session *session, openvpn_x509_cert_t *cert, int cert_dep
 
     /* run --tls-verify script */
     if (opt->verify_command && SUCCESS != verify_cert_call_command(opt->verify_command,
-                                                                   opt->es, cert_depth, subject))
+                                                                   opt->es, cert_depth, cert, subject))
     {
         goto cleanup;
     }
@@ -926,9 +938,9 @@ key_state_check_auth_pending_file(struct auth_deferred_status *ads,
             if (!check_auth_pending_method(multi->peer_info, pending_method))
             {
                 char buf[128];
-                snprintf(buf, sizeof(buf),
-                         "Authentication failed, required pending auth "
-                         "method '%s' not supported", pending_method);
+                openvpn_snprintf(buf, sizeof(buf),
+                                 "Authentication failed, required pending auth "
+                                 "method '%s' not supported", pending_method);
                 auth_set_client_reason(multi, buf);
                 msg(M_INFO, "Client does not supported auth pending method "
                     "'%s'", pending_method);
@@ -1007,6 +1019,7 @@ key_state_gen_auth_control_files(struct auth_deferred_status *ads,
  */
 static char *
 key_state_check_auth_failed_message_file(const struct auth_deferred_status *ads,
+                                         struct tls_multi *multi,
                                          struct gc_arena *gc)
 {
     char *ret = NULL;
@@ -1190,8 +1203,8 @@ tls_authentication_status(struct tls_multi *multi)
     {
         struct gc_arena gc = gc_new();
         const struct key_state *ks = get_primary_key(multi);
-        const char *plugin_message = key_state_check_auth_failed_message_file(&ks->plugin_auth, &gc);
-        const char *script_message = key_state_check_auth_failed_message_file(&ks->script_auth, &gc);
+        const char *plugin_message = key_state_check_auth_failed_message_file(&ks->plugin_auth, multi, &gc);
+        const char *script_message = key_state_check_auth_failed_message_file(&ks->script_auth, multi, &gc);
 
         if (plugin_message)
         {
@@ -1275,7 +1288,7 @@ check_for_client_reason(struct tls_multi *multi,
                         struct auth_deferred_status *status)
 {
     struct gc_arena gc = gc_new();
-    const char *msg = key_state_check_auth_failed_message_file(status, &gc);
+    const char *msg = key_state_check_auth_failed_message_file(status, multi, &gc);
     if (msg)
     {
         auth_set_client_reason(multi, msg);
@@ -1518,6 +1531,7 @@ verify_user_pass_plugin(struct tls_session *session, struct tls_multi *multi,
 
 static int
 verify_user_pass_management(struct tls_session *session,
+                            struct tls_multi *multi,
                             const struct user_pass *up)
 {
     int retval = KMDA_ERROR;
@@ -1568,24 +1582,6 @@ set_verify_user_pass_env(struct user_pass *up, struct tls_multi *multi,
     }
 }
 
-bool
-ssl_verify_username_length(struct tls_session *session, const char *username)
-{
-    if ((session->opt->ssl_flags & SSLF_USERNAME_AS_COMMON_NAME)
-        && strlen(username) > TLS_USERNAME_LEN)
-    {
-        msg(D_TLS_ERRORS,
-            "TLS Auth Error: --username-as-common name specified and "
-            "username is longer than the maximum permitted Common Name "
-            "length of %d characters", TLS_USERNAME_LEN);
-        return false;
-    }
-    else
-    {
-        return true;
-    }
-}
-
 /**
  * Main username/password verification entry point
  *
@@ -1618,17 +1614,6 @@ verify_user_pass(struct user_pass *up, struct tls_multi *multi,
      * methods unless otherwise specified
      */
     bool skip_auth = false;
-
-    /* Replace username early if override-username is in effect but only
-     * if client is sending the original username */
-    if (multi->locked_original_username
-        && strncmp(up->username, multi->locked_original_username, sizeof(up->username)) == 0)
-    {
-        msg(D_MULTI_LOW, "TLS: Replacing client provided username '%s' with "
-            "username from override-user '%s'", up->username,
-            multi->locked_username);
-        strncpy(up->username, multi->locked_username, sizeof(up->username));
-    }
 
     /*
      * If server is configured with --auth-gen-token and the client sends
@@ -1692,7 +1677,7 @@ verify_user_pass(struct user_pass *up, struct tls_multi *multi,
 #ifdef ENABLE_MANAGEMENT
         if (man_def_auth == KMDA_DEF)
         {
-            man_def_auth = verify_user_pass_management(session, up);
+            man_def_auth = verify_user_pass_management(session, multi, up);
         }
 #endif
         if (plugin_defined(session->opt->plugins, OPENVPN_PLUGIN_AUTH_USER_PASS_VERIFY))
@@ -1707,12 +1692,15 @@ verify_user_pass(struct user_pass *up, struct tls_multi *multi,
     }
 
     /* check sizing of username if it will become our common name */
-    if (!ssl_verify_username_length(session, up->username))
+    if ((session->opt->ssl_flags & SSLF_USERNAME_AS_COMMON_NAME)
+        && strlen(up->username)>TLS_USERNAME_LEN)
     {
+        msg(D_TLS_ERRORS,
+            "TLS Auth Error: --username-as-common name specified and username is longer than the maximum permitted Common Name length of %d characters",
+            TLS_USERNAME_LEN);
         plugin_status = OPENVPN_PLUGIN_FUNC_ERROR;
         script_status = OPENVPN_PLUGIN_FUNC_ERROR;
     }
-
     /* auth succeeded? */
     bool plugin_ok = plugin_status == OPENVPN_PLUGIN_FUNC_SUCCESS
                      || plugin_status == OPENVPN_PLUGIN_FUNC_DEFERRED;

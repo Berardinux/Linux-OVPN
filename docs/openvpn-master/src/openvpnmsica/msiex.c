@@ -2,7 +2,7 @@
  *  openvpnmsica -- Custom Action DLL to provide OpenVPN-specific support to MSI packages
  *                  https://community.openvpn.net/openvpn/wiki/OpenVPNMSICA
  *
- *  Copyright (C) 2018-2025 Simon Rozman <simon@rozman.si>
+ *  Copyright (C) 2018-2024 Simon Rozman <simon@rozman.si>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License version 2
@@ -37,8 +37,8 @@
 UINT
 msi_get_string(
     _In_ MSIHANDLE hInstall,
-    _In_z_ LPCWSTR szName,
-    _Out_ LPWSTR *pszValue)
+    _In_z_ LPCTSTR szName,
+    _Out_ LPTSTR *pszValue)
 {
     if (pszValue == NULL)
     {
@@ -46,29 +46,29 @@ msi_get_string(
     }
 
     /* Try with stack buffer first. */
-    WCHAR szBufStack[128];
+    TCHAR szBufStack[128];
     DWORD dwLength = _countof(szBufStack);
     UINT uiResult = MsiGetProperty(hInstall, szName, szBufStack, &dwLength);
     if (uiResult == ERROR_SUCCESS)
     {
         /* Copy from stack. */
-        *pszValue = (LPWSTR)malloc(++dwLength * sizeof(WCHAR));
+        *pszValue = (LPTSTR)malloc(++dwLength * sizeof(TCHAR));
         if (*pszValue == NULL)
         {
-            msg(M_FATAL, "%s: malloc(%u) failed", dwLength * sizeof(WCHAR));
+            msg(M_FATAL, "%s: malloc(%u) failed", dwLength * sizeof(TCHAR));
             return ERROR_OUTOFMEMORY;
         }
 
-        memcpy(*pszValue, szBufStack, dwLength * sizeof(WCHAR));
+        memcpy(*pszValue, szBufStack, dwLength * sizeof(TCHAR));
         return ERROR_SUCCESS;
     }
     else if (uiResult == ERROR_MORE_DATA)
     {
         /* Allocate on heap and retry. */
-        LPWSTR szBufHeap = (LPWSTR)malloc(++dwLength * sizeof(WCHAR));
+        LPTSTR szBufHeap = (LPTSTR)malloc(++dwLength * sizeof(TCHAR));
         if (szBufHeap == NULL)
         {
-            msg(M_FATAL, "%s: malloc(%u) failed", __FUNCTION__, dwLength * sizeof(WCHAR));
+            msg(M_FATAL, "%s: malloc(%u) failed", __FUNCTION__, dwLength * sizeof(TCHAR));
             return ERROR_OUTOFMEMORY;
         }
 
@@ -96,7 +96,7 @@ UINT
 msi_get_record_string(
     _In_ MSIHANDLE hRecord,
     _In_ unsigned int iField,
-    _Out_ LPWSTR *pszValue)
+    _Out_ LPTSTR *pszValue)
 {
     if (pszValue == NULL)
     {
@@ -104,29 +104,29 @@ msi_get_record_string(
     }
 
     /* Try with stack buffer first. */
-    WCHAR szBufStack[128];
+    TCHAR szBufStack[128];
     DWORD dwLength = _countof(szBufStack);
     UINT uiResult = MsiRecordGetString(hRecord, iField, szBufStack, &dwLength);
     if (uiResult == ERROR_SUCCESS)
     {
         /* Copy from stack. */
-        *pszValue = (LPWSTR)malloc(++dwLength * sizeof(WCHAR));
+        *pszValue = (LPTSTR)malloc(++dwLength * sizeof(TCHAR));
         if (*pszValue == NULL)
         {
-            msg(M_FATAL, "%s: malloc(%u) failed", __FUNCTION__, dwLength * sizeof(WCHAR));
+            msg(M_FATAL, "%s: malloc(%u) failed", __FUNCTION__, dwLength * sizeof(TCHAR));
             return ERROR_OUTOFMEMORY;
         }
 
-        memcpy(*pszValue, szBufStack, dwLength * sizeof(WCHAR));
+        memcpy(*pszValue, szBufStack, dwLength * sizeof(TCHAR));
         return ERROR_SUCCESS;
     }
     else if (uiResult == ERROR_MORE_DATA)
     {
         /* Allocate on heap and retry. */
-        LPWSTR szBufHeap = (LPWSTR)malloc(++dwLength * sizeof(WCHAR));
+        LPTSTR szBufHeap = (LPTSTR)malloc(++dwLength * sizeof(TCHAR));
         if (szBufHeap == NULL)
         {
-            msg(M_FATAL, "%s: malloc(%u) failed", __FUNCTION__, dwLength * sizeof(WCHAR));
+            msg(M_FATAL, "%s: malloc(%u) failed", __FUNCTION__, dwLength * sizeof(TCHAR));
             return ERROR_OUTOFMEMORY;
         }
 
@@ -154,7 +154,7 @@ UINT
 msi_format_record(
     _In_ MSIHANDLE hInstall,
     _In_ MSIHANDLE hRecord,
-    _Out_ LPWSTR *pszValue)
+    _Out_ LPTSTR *pszValue)
 {
     if (pszValue == NULL)
     {
@@ -162,29 +162,29 @@ msi_format_record(
     }
 
     /* Try with stack buffer first. */
-    WCHAR szBufStack[128];
+    TCHAR szBufStack[128];
     DWORD dwLength = _countof(szBufStack);
     UINT uiResult = MsiFormatRecord(hInstall, hRecord, szBufStack, &dwLength);
     if (uiResult == ERROR_SUCCESS)
     {
         /* Copy from stack. */
-        *pszValue = (LPWSTR)malloc(++dwLength * sizeof(WCHAR));
+        *pszValue = (LPTSTR)malloc(++dwLength * sizeof(TCHAR));
         if (*pszValue == NULL)
         {
-            msg(M_FATAL, "%s: malloc(%u) failed", __FUNCTION__, dwLength * sizeof(WCHAR));
+            msg(M_FATAL, "%s: malloc(%u) failed", __FUNCTION__, dwLength * sizeof(TCHAR));
             return ERROR_OUTOFMEMORY;
         }
 
-        memcpy(*pszValue, szBufStack, dwLength * sizeof(WCHAR));
+        memcpy(*pszValue, szBufStack, dwLength * sizeof(TCHAR));
         return ERROR_SUCCESS;
     }
     else if (uiResult == ERROR_MORE_DATA)
     {
         /* Allocate on heap and retry. */
-        LPWSTR szBufHeap = (LPWSTR)malloc(++dwLength * sizeof(WCHAR));
+        LPTSTR szBufHeap = (LPTSTR)malloc(++dwLength * sizeof(TCHAR));
         if (szBufHeap == NULL)
         {
-            msg(M_FATAL, "%s: malloc(%u) failed", __FUNCTION__, dwLength * sizeof(WCHAR));
+            msg(M_FATAL, "%s: malloc(%u) failed", __FUNCTION__, dwLength * sizeof(TCHAR));
             return ERROR_OUTOFMEMORY;
         }
 
@@ -213,7 +213,7 @@ msi_format_field(
     _In_ MSIHANDLE hInstall,
     _In_ MSIHANDLE hRecord,
     _In_ unsigned int iField,
-    _Out_ LPWSTR *pszValue)
+    _Out_ LPTSTR *pszValue)
 {
     if (pszValue == NULL)
     {
@@ -221,7 +221,7 @@ msi_format_field(
     }
 
     /* Read string to format. */
-    LPWSTR szValue = NULL;
+    LPTSTR szValue = NULL;
     UINT uiResult = msi_get_record_string(hRecord, iField, &szValue);
     if (uiResult != ERROR_SUCCESS)
     {

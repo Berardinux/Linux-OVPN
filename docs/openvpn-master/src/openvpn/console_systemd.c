@@ -23,8 +23,7 @@
  */
 
 /**
- * @file
- * Alternative method to query for user input, using systemd
+ * @file Alternative method to query for user input, using systemd
  *
  */
 
@@ -98,7 +97,7 @@ get_console_input_systemd(const char *prompt, const bool echo, char *input, cons
  *
  */
 bool
-query_user_exec_systemd(void)
+query_user_exec(void)
 {
     bool ret = true;  /* Presume everything goes okay */
     int i;

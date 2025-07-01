@@ -5,7 +5,7 @@
  *             packet encryption, packet authentication, and
  *             packet compression.
  *
- *  Copyright (C) 2002-2025 OpenVPN Inc <sales@openvpn.net>
+ *  Copyright (C) 2002-2024 OpenVPN Inc <sales@openvpn.net>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License version 2
@@ -276,10 +276,6 @@ mroute_extract_openvpn_sockaddr(struct mroute_addr *addr,
                 addr->len = 6;
                 addr->v4.addr = osaddr->addr.in4.sin_addr.s_addr;
                 addr->v4.port = osaddr->addr.in4.sin_port;
-                if (addr->proto != PROTO_NONE)
-                {
-                    addr->type |= MR_WITH_PROTO;
-                }
             }
             else
             {
@@ -299,10 +295,6 @@ mroute_extract_openvpn_sockaddr(struct mroute_addr *addr,
                 addr->len = 18;
                 addr->v6.addr = osaddr->addr.in6.sin6_addr;
                 addr->v6.port = osaddr->addr.in6.sin6_port;
-                if (addr->proto != PROTO_NONE)
-                {
-                    addr->type |= MR_WITH_PROTO;
-                }
             }
             else
             {
@@ -411,10 +403,6 @@ mroute_addr_print_ex(const struct mroute_addr *ma,
                 {
                     buf_printf(&out, "ARP/");
                 }
-                if (maddr.type & MR_WITH_PROTO)
-                {
-                    buf_printf(&out, "%s:", proto2ascii(maddr.proto, AF_INET, false));
-                }
                 buf_printf(&out, "%s", print_in_addr_t(ntohl(maddr.v4.addr),
                                                        (flags & MAPF_IA_EMPTY_IF_UNDEF) ? IA_EMPTY_IF_UNDEF : 0, gc));
                 if (maddr.type & MR_WITH_NETBITS)
@@ -438,26 +426,21 @@ mroute_addr_print_ex(const struct mroute_addr *ma,
 
             case MR_ADDR_IPV6:
             {
-                if (maddr.type & MR_WITH_PROTO)
-                {
-                    buf_printf(&out, "%s:", proto2ascii(maddr.proto, AF_INET6, false));
-                }
                 if (IN6_IS_ADDR_V4MAPPED( &maddr.v6.addr ) )
                 {
                     buf_printf(&out, "%s", print_in_addr_t(maddr.v4mappedv6.addr,
                                                            IA_NET_ORDER, gc));
-                }
-                else if (maddr.type & MR_WITH_PORT)
-                {
-                    buf_printf(&out, "[%s]", print_in6_addr(maddr.v6.addr, 0, gc));
+                    /* we only print port numbers for v4mapped v6 as of
+                     * today, because "v6addr:port" is too ambiguous
+                     */
+                    if (maddr.type & MR_WITH_PORT)
+                    {
+                        buf_printf(&out, ":%d", ntohs(maddr.v6.port));
+                    }
                 }
                 else
                 {
                     buf_printf(&out, "%s", print_in6_addr(maddr.v6.addr, 0, gc));
-                }
-                if (maddr.type & MR_WITH_PORT)
-                {
-                    buf_printf(&out, ":%d", ntohs(maddr.v6.port));
                 }
                 if (maddr.type & MR_WITH_NETBITS)
                 {

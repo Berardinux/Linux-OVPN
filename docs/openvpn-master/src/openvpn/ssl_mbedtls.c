@@ -5,7 +5,7 @@
  *             packet encryption, packet authentication, and
  *             packet compression.
  *
- *  Copyright (C) 2002-2025 OpenVPN Inc <sales@openvpn.net>
+ *  Copyright (C) 2002-2024 OpenVPN Inc <sales@openvpn.net>
  *  Copyright (C) 2010-2021 Fox Crypto B.V. <openvpn@foxcrypto.com>
  *  Copyright (C) 2006-2010, Brainspark B.V.
  *
@@ -24,8 +24,7 @@
  */
 
 /**
- * @file
- * Control Channel mbed TLS Backend
+ * @file Control Channel mbed TLS Backend
  */
 
 #ifdef HAVE_CONFIG_H
@@ -45,7 +44,6 @@
 #include "mbedtls_compat.h"
 #include "pkcs11_backend.h"
 #include "ssl_common.h"
-#include "ssl_util.h"
 
 #include "ssl_verify_mbedtls.h"
 #include <mbedtls/debug.h>
@@ -174,6 +172,8 @@ tls_ctx_initialised(struct tls_root_ctx *ctx)
     return ctx->initialised;
 }
 
+#ifdef HAVE_EXPORT_KEYING_MATERIAL
+
 #if HAVE_MBEDTLS_SSL_CONF_EXPORT_KEYS_EXT_CB
 /*
  * Key export callback for older versions of mbed TLS, to be used with
@@ -251,8 +251,6 @@ mbedtls_ssl_export_keys_cb(void *p_expkey,
     memcpy(cache->master_secret, secret, sizeof(cache->master_secret));
     cache->tls_prf_type = tls_prf_type;
 }
-#elif !defined(MBEDTLS_SSL_KEYING_MATERIAL_EXPORT)
-#error mbedtls_ssl_conf_export_keys_ext_cb, mbedtls_ssl_set_export_keys_cb or mbedtls_ssl_export_keying_material must be available in mbed TLS
 #endif /* HAVE_MBEDTLS_SSL_CONF_EXPORT_KEYS_EXT_CB */
 
 bool
@@ -262,20 +260,6 @@ key_state_export_keying_material(struct tls_session *session,
 {
     ASSERT(strlen(label) == label_size);
 
-#if defined(MBEDTLS_SSL_KEYING_MATERIAL_EXPORT)
-    /* Our version of mbed TLS has a built-in TLS-Exporter. */
-
-    mbedtls_ssl_context *ctx = session->key[KS_PRIMARY].ks_ssl.ctx;
-    if (mbed_ok(mbedtls_ssl_export_keying_material(ctx, ekm, ekm_size, label, label_size, NULL, 0, 0)))
-    {
-        return true;
-    }
-    else
-    {
-        return false;
-    }
-
-#else  /* defined(MBEDTLS_SSL_KEYING_MATERIAL_EXPORT) */
     struct tls_key_cache *cache = &session->key[KS_PRIMARY].ks_ssl.tls_key_cache;
 
     /* If the type is NONE, we either have no cached secrets or
@@ -300,8 +284,17 @@ key_state_export_keying_material(struct tls_session *session,
         secure_memzero(ekm, session->opt->ekm_size);
         return false;
     }
-#endif  /* defined(MBEDTLS_SSL_KEYING_MATERIAL_EXPORT) */
 }
+#else  /* ifdef HAVE_EXPORT_KEYING_MATERIAL */
+bool
+key_state_export_keying_material(struct tls_session *session,
+                                 const char *label, size_t label_size,
+                                 void *ekm, size_t ekm_size)
+{
+    /* Dummy function to avoid ifdefs in the common code */
+    return false;
+}
+#endif /* HAVE_EXPORT_KEYING_MATERIAL */
 
 bool
 tls_ctx_set_options(struct tls_root_ctx *ctx, unsigned int ssl_flags)
@@ -408,7 +401,7 @@ tls_ctx_set_tls_groups(struct tls_root_ctx *ctx, const char *groups)
 
     /* Get number of groups and allocate an array in ctx */
     int groups_count = get_num_elements(groups, ':');
-    ALLOC_ARRAY_CLEAR(ctx->groups, mbedtls_compat_group_id, groups_count + 1)
+    ALLOC_ARRAY_CLEAR(ctx->groups, mbedtls_ecp_group_id, groups_count + 1)
 
     /* Parse allowed ciphers, getting IDs */
     int i = 0;
@@ -425,15 +418,11 @@ tls_ctx_set_tls_groups(struct tls_root_ctx *ctx, const char *groups)
         }
         else
         {
-            ctx->groups[i] = mbedtls_compat_get_group_id(ci);
+            ctx->groups[i] = ci->grp_id;
             i++;
         }
     }
-
-    /* Recent mbedtls versions state that the list of groups must be terminated
-     * with 0. Older versions state that it must be terminated with MBEDTLS_ECP_DP_NONE
-     * which is also 0, so this works either way. */
-    ctx->groups[i] = 0;
+    ctx->groups[i] = MBEDTLS_ECP_DP_NONE;
 
     gc_free(&gc);
 }
@@ -1048,41 +1037,59 @@ tls_ctx_personalise_random(struct tls_root_ctx *ctx)
 int
 tls_version_max(void)
 {
-    /* We need mbedtls_ssl_export_keying_material() to support TLS 1.3. */
-#if defined(MBEDTLS_SSL_PROTO_TLS1_3) && defined(MBEDTLS_SSL_KEYING_MATERIAL_EXPORT)
-    return TLS_VER_1_3;
-#elif defined(MBEDTLS_SSL_PROTO_TLS1_2)
+#if defined(MBEDTLS_SSL_PROTO_TLS1_2)
     return TLS_VER_1_2;
-#else
-    #error mbedtls is compiled without support for TLS 1.2 or 1.3
-#endif
+#elif defined(MBEDTLS_SSL_PROTO_TLS1_1)
+    return TLS_VER_1_1;
+#elif defined(MBEDTLS_SSL_PROTO_TLS1)
+    return TLS_VER_1_0;
+#else /* defined(MBEDTLS_SSL_PROTO_TLS1_2) */
+    #error "mbedtls is compiled without support for TLS 1.0, 1.1 and 1.2."
+#endif /* defined(MBEDTLS_SSL_PROTO_TLS1_2) */
 }
 
 /**
- * Convert an OpenVPN tls-version variable to mbed TLS format
+ * Convert an OpenVPN tls-version variable to mbed TLS format (i.e. a major and
+ * minor ssl version number).
  *
  * @param tls_ver       The tls-version variable to convert.
- *
- * @return Translated mbedTLS SSL version from OpenVPN TLS version.
+ * @param major         Returns the TLS major version in mbed TLS format.
+ *                      Must be a valid pointer.
+ * @param minor         Returns the TLS minor version in mbed TLS format.
+ *                      Must be a valid pointer.
  */
-mbedtls_ssl_protocol_version
-tls_version_to_ssl_version(int tls_ver)
+static void
+tls_version_to_major_minor(int tls_ver, int *major, int *minor)
 {
+    ASSERT(major);
+    ASSERT(minor);
+
     switch (tls_ver)
     {
-#if defined(MBEDTLS_SSL_PROTO_TLS1_2)
-        case TLS_VER_1_2:
-            return MBEDTLS_SSL_VERSION_TLS1_2;
+#if defined(MBEDTLS_SSL_PROTO_TLS1)
+        case TLS_VER_1_0:
+            *major = MBEDTLS_SSL_MAJOR_VERSION_3;
+            *minor = MBEDTLS_SSL_MINOR_VERSION_1;
+            break;
 #endif
 
-#if defined(MBEDTLS_SSL_PROTO_TLS1_3)
-        case TLS_VER_1_3:
-            return MBEDTLS_SSL_VERSION_TLS1_3;
+#if defined(MBEDTLS_SSL_PROTO_TLS1_1)
+        case TLS_VER_1_1:
+            *major = MBEDTLS_SSL_MAJOR_VERSION_3;
+            *minor = MBEDTLS_SSL_MINOR_VERSION_2;
+            break;
+#endif
+
+#if defined(MBEDTLS_SSL_PROTO_TLS1_2)
+        case TLS_VER_1_2:
+            *major = MBEDTLS_SSL_MAJOR_VERSION_3;
+            *minor = MBEDTLS_SSL_MINOR_VERSION_3;
+            break;
 #endif
 
         default:
             msg(M_FATAL, "%s: invalid or unsupported TLS version %d", __func__, tls_ver);
-            return MBEDTLS_SSL_VERSION_UNKNOWN;
+            break;
     }
 }
 
@@ -1163,7 +1170,7 @@ key_state_ssl_init(struct key_state_ssl *ks_ssl,
 
     if (ssl_ctx->groups)
     {
-        mbedtls_ssl_conf_groups(ks_ssl->ssl_config, ssl_ctx->groups);
+        mbedtls_ssl_conf_curves(ks_ssl->ssl_config, ssl_ctx->groups);
     }
 
     /* Disable TLS renegotiations if the mbedtls library supports that feature.
@@ -1213,14 +1220,15 @@ key_state_ssl_init(struct key_state_ssl *ks_ssl,
             &SSLF_TLS_VERSION_MIN_MASK;
 
         /* default to TLS 1.2 */
-        mbedtls_ssl_protocol_version version = MBEDTLS_SSL_VERSION_TLS1_2;
+        int major = MBEDTLS_SSL_MAJOR_VERSION_3;
+        int minor = MBEDTLS_SSL_MINOR_VERSION_3;
 
         if (configured_tls_version_min > TLS_VER_UNSPEC)
         {
-            version = tls_version_to_ssl_version(configured_tls_version_min);
+            tls_version_to_major_minor(configured_tls_version_min, &major, &minor);
         }
 
-        mbedtls_ssl_conf_min_tls_version(ks_ssl->ssl_config, version);
+        mbedtls_ssl_conf_min_version(ks_ssl->ssl_config, major, minor);
     }
 
     /* Initialize maximum TLS version */
@@ -1229,22 +1237,23 @@ key_state_ssl_init(struct key_state_ssl *ks_ssl,
             (session->opt->ssl_flags >> SSLF_TLS_VERSION_MAX_SHIFT)
             &SSLF_TLS_VERSION_MAX_MASK;
 
-        mbedtls_ssl_protocol_version version = MBEDTLS_SSL_VERSION_UNKNOWN;
+        int major = 0;
+        int minor = 0;
 
         if (configured_tls_version_max > TLS_VER_UNSPEC)
         {
-            version = tls_version_to_ssl_version(configured_tls_version_max);
+            tls_version_to_major_minor(configured_tls_version_max, &major, &minor);
         }
         else
         {
             /* Default to tls_version_max(). */
-            version = tls_version_to_ssl_version(tls_version_max());
+            tls_version_to_major_minor(tls_version_max(), &major, &minor);
         }
 
-        mbedtls_ssl_conf_max_tls_version(ks_ssl->ssl_config, version);
+        mbedtls_ssl_conf_max_version(ks_ssl->ssl_config, major, minor);
     }
 
-#if HAVE_MBEDTLS_SSL_CONF_EXPORT_KEYS_EXT_CB && !defined(MBEDTLS_SSL_KEYING_MATERIAL_EXPORT)
+#if HAVE_MBEDTLS_SSL_CONF_EXPORT_KEYS_EXT_CB
     /* Initialize keying material exporter, old style. */
     mbedtls_ssl_conf_export_keys_ext_cb(ks_ssl->ssl_config,
                                         mbedtls_ssl_export_keys_cb, session);
@@ -1259,7 +1268,7 @@ key_state_ssl_init(struct key_state_ssl *ks_ssl,
      * verification. */
     ASSERT(mbed_ok(mbedtls_ssl_set_hostname(ks_ssl->ctx, NULL)));
 
-#if HAVE_MBEDTLS_SSL_SET_EXPORT_KEYS_CB && !defined(MBEDTLS_SSL_KEYING_MATERIAL_EXPORT)
+#if HAVE_MBEDTLS_SSL_SET_EXPORT_KEYS_CB
     /* Initialize keying material exporter, new style. */
     mbedtls_ssl_set_export_keys_cb(ks_ssl->ctx, mbedtls_ssl_export_keys_cb, session);
 #endif
@@ -1268,14 +1277,6 @@ key_state_ssl_init(struct key_state_ssl *ks_ssl,
     ALLOC_OBJ_CLEAR(ks_ssl->bio_ctx, bio_ctx);
     mbedtls_ssl_set_bio(ks_ssl->ctx, ks_ssl->bio_ctx, ssl_bio_write,
                         ssl_bio_read, NULL);
-}
-
-
-void
-key_state_ssl_shutdown(struct key_state_ssl *ks_ssl)
-{
-    mbedtls_ssl_send_alert_message(ks_ssl->ctx, MBEDTLS_SSL_ALERT_LEVEL_FATAL,
-                                   MBEDTLS_SSL_ALERT_MSG_CLOSE_NOTIFY);
 }
 
 void
@@ -1533,16 +1534,16 @@ print_details(struct key_state_ssl *ks_ssl, const char *prefix)
     char s2[256];
 
     s1[0] = s2[0] = 0;
-    snprintf(s1, sizeof(s1), "%s %s, cipher %s",
-             prefix,
-             mbedtls_ssl_get_version(ks_ssl->ctx),
-             mbedtls_ssl_get_ciphersuite(ks_ssl->ctx));
+    openvpn_snprintf(s1, sizeof(s1), "%s %s, cipher %s",
+                     prefix,
+                     mbedtls_ssl_get_version(ks_ssl->ctx),
+                     mbedtls_ssl_get_ciphersuite(ks_ssl->ctx));
 
     cert = mbedtls_ssl_get_peer_cert(ks_ssl->ctx);
     if (cert != NULL)
     {
-        snprintf(s2, sizeof(s2), ", %u bit key",
-                 (unsigned int) mbedtls_pk_get_bitlen(&cert->pk));
+        openvpn_snprintf(s2, sizeof(s2), ", %u bit key",
+                         (unsigned int) mbedtls_pk_get_bitlen(&cert->pk));
     }
 
     msg(D_HANDSHAKE, "%s%s", s1, s2);
@@ -1595,6 +1596,20 @@ show_available_curves(void)
         printf("%s\n", pcurve->name);
         pcurve++;
     }
+}
+
+void
+get_highest_preference_tls_cipher(char *buf, int size)
+{
+    const char *cipher_name;
+    const int *ciphers = mbedtls_ssl_list_ciphersuites();
+    if (*ciphers == 0)
+    {
+        msg(M_FATAL, "Cannot retrieve list of supported SSL ciphers.");
+    }
+
+    cipher_name = mbedtls_ssl_get_ciphersuite_name(*ciphers);
+    strncpynt(buf, cipher_name, size);
 }
 
 const char *

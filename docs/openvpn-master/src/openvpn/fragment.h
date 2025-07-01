@@ -5,7 +5,7 @@
  *             packet encryption, packet authentication, and
  *             packet compression.
  *
- *  Copyright (C) 2002-2025 OpenVPN Inc <sales@openvpn.net>
+ *  Copyright (C) 2002-2024 OpenVPN Inc <sales@openvpn.net>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License version 2
@@ -92,28 +92,25 @@ struct fragment {
  * List of fragment structures for reassembling multiple incoming packets
  * concurrently.
  */
-struct fragment_list
-{
-    /** Highest fragmentation sequence ID of
-     *  the packets currently being
-     *  reassembled. */
-    int seq_id;
-    /** Index of the packet being reassembled
-     *   with the highest fragmentation
-     *   sequence ID into the \c
-     *   fragment_list.fragments array. */
-    int index;
+struct fragment_list {
+    int seq_id;                 /**< Highest fragmentation sequence ID of
+                                 *   the packets currently being
+                                 *   reassembled. */
+    int index;                  /**< Index of the packet being reassembled
+                                 *   with the highest fragmentation
+                                 *   sequence ID into the \c
+                                 *   fragment_list.fragments array. */
 
-    /** Array of reassembly structures, each can contain one whole packet.
-     *
-     *  The fragmentation sequence IDs of the packets being reassembled in
-     *  this array are linearly increasing. \c
-     *  fragment_list.fragments[fragment_list.index] has an ID of \c
-     *  fragment_list.seq_id.  This means that one of these \c fragment_list
-     *  structures can at any one time contain at most packets with the
-     *  fragmentation sequence IDs in the range \c fragment_list.seq_id \c -
-     *  \c N_FRAG_BUF \c + \c 1 to \c fragment_list.seq_id, inclusive.
-     */
+/** Array of reassembly structures, each can contain one whole packet.
+ *
+ *  The fragmentation sequence IDs of the packets being reassembled in
+ *  this array are linearly increasing. \c
+ *  fragment_list.fragments[fragment_list.index] has an ID of \c
+ *  fragment_list.seq_id.  This means that one of these \c fragment_list
+ *  structures can at any one time contain at most packets with the
+ *  fragmentation sequence IDs in the range \c fragment_list.seq_id \c -
+ *  \c N_FRAG_BUF \c + \c 1 to \c fragment_list.seq_id, inclusive.
+ */
     struct fragment fragments[N_FRAG_BUF];
 };
 
@@ -140,6 +137,8 @@ struct fragment_master {
     struct event_timeout wakeup; /**< Timeout structure used by the main
                                   *   event loop to know when to do
                                   *   fragmentation housekeeping. */
+    bool received_os_mtu_hint;  /**< Whether the operating system has
+                                 *   explicitly recommended an MTU value. */
 #define N_SEQ_ID            256
     /**< One more than the maximum fragment
      *   sequence ID, above which the IDs wrap
@@ -152,7 +151,9 @@ struct fragment_master {
                                  *   the remote OpenVPN peer can determine
                                  *   which parts belong to which original
                                  *   packet. */
-#define MAX_FRAG_PKT_SIZE 65536 /**< (Not used) Maximum packet size before fragmenting. */
+#define MAX_FRAG_PKT_SIZE 65536
+    /**< (Not used) Maximum packet size before
+     *   fragmenting. */
     int outgoing_frag_size;     /**< Size in bytes of each part to be
                                  *   sent, except for the last part which
                                  *   may be smaller.
@@ -184,37 +185,45 @@ struct fragment_master {
 /**************************************************************************/
 /** @name Fragment header
  *  @todo Add description of %fragment header format.
- */
-/** @{ */ /*************************************/
+ *//** @{ *//*************************************/
 
 typedef uint32_t fragment_header_type;
-/**< Fragmentation information is stored in a 32-bit packet header. */
+/**< Fragmentation information is stored in
+ *   a 32-bit packet header. */
 
 #define hton_fragment_header_type(x) htonl(x)
-/**< Convert a fragment_header_type from host to network order. */
+/**< Convert a fragment_header_type from
+ *   host to network order. */
 
 #define ntoh_fragment_header_type(x) ntohl(x)
-/**< Convert a \c fragment_header_type from network to host order. */
+/**< Convert a \c fragment_header_type
+ *   from network to host order. */
 
-#define FRAG_TYPE_MASK               0x00000003 /**< Bit mask for %fragment type info. */
-#define FRAG_TYPE_SHIFT              0          /**< Bit shift for %fragment type info. */
+#define FRAG_TYPE_MASK        0x00000003
+/**< Bit mask for %fragment type info. */
+#define FRAG_TYPE_SHIFT       0 /**< Bit shift for %fragment type info. */
 
-#define FRAG_WHOLE                   0          /**< Fragment type indicating packet is whole. */
-#define FRAG_YES_NOTLAST             1
-/**< Fragment type indicating packet is part of a fragmented packet, but not
- *   the last part in the sequence. */
-#define FRAG_YES_LAST                2
-/**< Fragment type indicating packet is the last part in the sequence of parts. */
-#define FRAG_TEST                    3
-/**< Fragment type not implemented yet.
- * In the future might be used as a control packet for establishing MTU size. */
+#define FRAG_WHOLE            0 /**< Fragment type indicating packet is
+                                 *   whole. */
+#define FRAG_YES_NOTLAST      1 /**< Fragment type indicating packet is
+                                 *   part of a fragmented packet, but not
+                                 *   the last part in the sequence. */
+#define FRAG_YES_LAST         2 /**< Fragment type indicating packet is
+                                 *   the last part in the sequence of
+                                 *   parts. */
+#define FRAG_TEST             3 /**< Fragment type not implemented yet.
+                                 *   In the future might be used as a
+                                 *   control packet for establishing MTU
+                                 *   size. */
 
-#define FRAG_SEQ_ID_MASK             0x000000ff /**< Bit mask for %fragment sequence ID. */
-#define FRAG_SEQ_ID_SHIFT            2          /**< Bit shift for %fragment sequence ID. */
+#define FRAG_SEQ_ID_MASK      0x000000ff
+/**< Bit mask for %fragment sequence ID. */
+#define FRAG_SEQ_ID_SHIFT     2 /**< Bit shift for %fragment sequence ID. */
 
-#define FRAG_ID_MASK                 0x0000001f /**< Bit mask for %fragment ID. */
-#define FRAG_ID_SHIFT                10         /**< Bit shift for %fragment ID. */
-
+#define FRAG_ID_MASK          0x0000001f
+/**< Bit mask for %fragment ID. */
+#define FRAG_ID_SHIFT         10
+/**< Bit shift for %fragment ID. */
 
 /*
  * FRAG_SIZE  14 bits
@@ -225,10 +234,12 @@ typedef uint32_t fragment_header_type;
  *   max_frag_size is only sent over the wire if FRAG_LAST is set.  Otherwise it is assumed
  *   to be the actual %fragment size received.
  */
-#define FRAG_SIZE_MASK               0x00003fff /**< Bit mask for %fragment size. */
-#define FRAG_SIZE_SHIFT              15         /**< Bit shift for %fragment size. */
-#define FRAG_SIZE_ROUND_SHIFT        2          /**< Bit shift for %fragment size rounding. */
-#define FRAG_SIZE_ROUND_MASK         ((1 << FRAG_SIZE_ROUND_SHIFT) - 1)
+#define FRAG_SIZE_MASK        0x00003fff
+/**< Bit mask for %fragment size. */
+#define FRAG_SIZE_SHIFT       15
+/**< Bit shift for %fragment size. */
+#define FRAG_SIZE_ROUND_SHIFT 2 /**< Bit shift for %fragment size rounding. */
+#define FRAG_SIZE_ROUND_MASK ((1 << FRAG_SIZE_ROUND_SHIFT) - 1)
 /**< Bit mask for %fragment size rounding. */
 
 /*
@@ -236,8 +247,10 @@ typedef uint32_t fragment_header_type;
  *
  * IF FRAG_WHOLE or FRAG_YES_NOTLAST, these 16 bits are available (not currently used)
  */
-#define FRAG_EXTRA_MASK              0x0000ffff /**< Bit mask for extra bits. */
-#define FRAG_EXTRA_SHIFT             15         /**< Bit shift for extra bits. */
+#define FRAG_EXTRA_MASK         0x0000ffff
+/**< Bit mask for extra bits. */
+#define FRAG_EXTRA_SHIFT        15
+/**< Bit shift for extra bits. */
 
 /** @} name Fragment header *//********************************************/
 
@@ -443,11 +456,10 @@ void fragment_wakeup(struct fragment_master *f, struct frame *frame);
  * packets which have not yet been reassembled completely but are already
  * older than their time-to-live.
  *
- * @param[in] f        The \c fragment_master structure for this VPN
- *                     tunnel.
- * @param[in] frame    The packet geometry parameters for this VPN
- *                     tunnel.
- * @param[out] tv      Will be set to time for next housekeeping.
+ * @param f            - The \c fragment_master structure for this VPN
+ *                       tunnel.
+ * @param frame        - The packet geometry parameters for this VPN
+ *                       tunnel.
  */
 static inline void
 fragment_housekeeping(struct fragment_master *f, struct frame *frame, struct timeval *tv)

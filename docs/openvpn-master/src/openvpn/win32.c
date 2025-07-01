@@ -5,7 +5,7 @@
  *             packet encryption, packet authentication, and
  *             packet compression.
  *
- *  Copyright (C) 2002-2025 OpenVPN Inc <sales@openvpn.net>
+ *  Copyright (C) 2002-2024 OpenVPN Inc <sales@openvpn.net>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License version 2
@@ -34,9 +34,6 @@
 
 #ifdef _WIN32
 
-#include <minwindef.h>
-#include <winsock2.h>
-
 #include "buffer.h"
 #include "error.h"
 #include "mtu.h"
@@ -50,7 +47,7 @@
 
 #include <versionhelpers.h>
 
-#include "wfp_block.h"
+#include "block_dns.h"
 
 /*
  * WFP handle
@@ -103,7 +100,7 @@ static char *win_sys_path = NULL; /* GLOBAL */
  * Set OpenSSL environment variables to a safe directory
  */
 static void
-set_openssl_env_vars(void);
+set_openssl_env_vars();
 
 void
 init_win32(void)
@@ -674,7 +671,7 @@ win32_signal_get(struct win32_signal *ws)
     }
     if (ret)
     {
-        throw_signal(ret); /* this will update siginfo_static.signal received */
+        throw_signal(ret); /* this will update signinfo_static.signal received */
     }
     return (siginfo_static.signal_received);
 }
@@ -888,8 +885,8 @@ env_block(const struct env_set *es)
     char force_path[256];
     char *sysroot = get_win_sys_path();
 
-    if (!snprintf(force_path, sizeof(force_path), "PATH=%s\\System32;%s;%s\\System32\\Wbem",
-                  sysroot, sysroot, sysroot))
+    if (!openvpn_snprintf(force_path, sizeof(force_path), "PATH=%s\\System32;%s;%s\\System32\\Wbem",
+                          sysroot, sysroot, sysroot))
     {
         msg(M_WARN, "env_block: default path truncated to %s", force_path);
     }
@@ -1140,20 +1137,72 @@ set_win_sys_path_via_env(struct env_set *es)
     set_win_sys_path(buf, es);
 }
 
-static bool
-win_get_exe_path(PWCHAR path, DWORD size)
+
+const char *
+win_get_tempdir(void)
 {
-    DWORD status = GetModuleFileNameW(NULL, path, size);
-    if (status == 0 || status == size)
+    static char tmpdir[MAX_PATH];
+    WCHAR wtmpdir[MAX_PATH];
+
+    if (!GetTempPathW(_countof(wtmpdir), wtmpdir))
     {
-        msg(M_WARN|M_ERRNO, "cannot get executable path");
-        return false;
+        /* Warn if we can't find a valid temporary directory, which should
+         * be unlikely.
+         */
+        msg(M_WARN, "Could not find a suitable temporary directory."
+            " (GetTempPath() failed).  Consider using --tmp-dir");
+        return NULL;
     }
-    return true;
+
+    if (WideCharToMultiByte(CP_UTF8, 0, wtmpdir, -1, NULL, 0, NULL, NULL) > sizeof(tmpdir))
+    {
+        msg(M_WARN, "Could not get temporary directory. Path is too long."
+            "  Consider using --tmp-dir");
+        return NULL;
+    }
+
+    WideCharToMultiByte(CP_UTF8, 0, wtmpdir, -1, tmpdir, sizeof(tmpdir), NULL, NULL);
+    return tmpdir;
+}
+
+static bool
+win_block_dns_service(bool add, int index, const HANDLE pipe)
+{
+    bool ret = false;
+    ack_message_t ack;
+    struct gc_arena gc = gc_new();
+
+    block_dns_message_t data = {
+        .header = {
+            (add ? msg_add_block_dns : msg_del_block_dns),
+            sizeof(block_dns_message_t),
+            0
+        },
+        .iface = { .index = index, .name = "" }
+    };
+
+    if (!send_msg_iservice(pipe, &data, sizeof(data), &ack, "Block_DNS"))
+    {
+        goto out;
+    }
+
+    if (ack.error_number != NO_ERROR)
+    {
+        msg(M_WARN, "Block_DNS: %s block dns filters using service failed: %s [status=0x%x if_index=%d]",
+            (add ? "adding" : "deleting"), strerror_win32(ack.error_number, &gc),
+            ack.error_number, data.iface.index);
+        goto out;
+    }
+
+    ret = true;
+    msg(M_INFO, "%s outside dns using service succeeded.", (add ? "Blocking" : "Unblocking"));
+out:
+    gc_free(&gc);
+    return ret;
 }
 
 static void
-win_wfp_msg_handler(DWORD err, const char *msg)
+block_dns_msg_handler(DWORD err, const char *msg)
 {
     struct gc_arena gc = gc_new();
 
@@ -1163,52 +1212,15 @@ win_wfp_msg_handler(DWORD err, const char *msg)
     }
     else
     {
-        msg(M_WARN, "Error in WFP: %s : %s [status=0x%lx]",
+        msg(M_WARN, "Error in add_block_dns_filters(): %s : %s [status=0x%lx]",
             msg, strerror_win32(err, &gc), err);
     }
 
     gc_free(&gc);
 }
 
-static bool
-win_wfp_block_service(bool add, bool dns_only, int index, const HANDLE pipe)
-{
-    bool ret = false;
-    ack_message_t ack;
-    struct gc_arena gc = gc_new();
-
-    wfp_block_message_t data = {
-        .header = {
-            (add ? msg_add_wfp_block : msg_del_wfp_block),
-            sizeof(wfp_block_message_t),
-            0
-        },
-        .flags = dns_only ? wfp_block_dns : wfp_block_local,
-        .iface = { .index = index, .name = "" }
-    };
-
-    if (!send_msg_iservice(pipe, &data, sizeof(data), &ack, "WFP block"))
-    {
-        goto out;
-    }
-
-    if (ack.error_number != NO_ERROR)
-    {
-        msg(M_WARN, "WFP block: %s block filters using service failed: %s [status=0x%x if_index=%d]",
-            (add ? "adding" : "deleting"), strerror_win32(ack.error_number, &gc),
-            ack.error_number, data.iface.index);
-        goto out;
-    }
-
-    ret = true;
-    msg(M_INFO, "%s WFP block filters using service succeeded.", (add ? "Adding" : "Deleting"));
-out:
-    gc_free(&gc);
-    return ret;
-}
-
 bool
-win_wfp_block(const NET_IFINDEX index, const HANDLE msg_channel, BOOL dns_only)
+win_wfp_block_dns(const NET_IFINDEX index, const HANDLE msg_channel)
 {
     WCHAR openvpnpath[MAX_PATH];
     bool ret = false;
@@ -1216,19 +1228,20 @@ win_wfp_block(const NET_IFINDEX index, const HANDLE msg_channel, BOOL dns_only)
 
     if (msg_channel)
     {
-        dmsg(D_LOW, "Using service to add WFP block filters");
-        ret = win_wfp_block_service(true, dns_only, index, msg_channel);
+        dmsg(D_LOW, "Using service to add block dns filters");
+        ret = win_block_dns_service(true, index, msg_channel);
         goto out;
     }
 
-    ret = win_get_exe_path(openvpnpath, _countof(openvpnpath));
-    if (ret == false)
+    status = GetModuleFileNameW(NULL, openvpnpath, _countof(openvpnpath));
+    if (status == 0 || status == _countof(openvpnpath))
     {
+        msg(M_WARN|M_ERRNO, "block_dns: cannot get executable path");
         goto out;
     }
 
-    status = add_wfp_block_filters(&m_hEngineHandle, index, openvpnpath,
-                                   win_wfp_msg_handler, dns_only);
+    status = add_block_dns_filters(&m_hEngineHandle, index, openvpnpath,
+                                   block_dns_msg_handler);
     if (status == 0)
     {
         int is_auto = 0;
@@ -1242,10 +1255,10 @@ win_wfp_block(const NET_IFINDEX index, const HANDLE msg_channel, BOOL dns_only)
         {
             tap_metric_v6 = 0;
         }
-        status = set_interface_metric(index, AF_INET, WFP_BLOCK_IFACE_METRIC);
+        status = set_interface_metric(index, AF_INET, BLOCK_DNS_IFACE_METRIC);
         if (!status)
         {
-            set_interface_metric(index, AF_INET6, WFP_BLOCK_IFACE_METRIC);
+            set_interface_metric(index, AF_INET6, BLOCK_DNS_IFACE_METRIC);
         }
     }
 
@@ -1263,12 +1276,12 @@ win_wfp_uninit(const NET_IFINDEX index, const HANDLE msg_channel)
 
     if (msg_channel)
     {
-        msg(D_LOW, "Using service to delete WFP block filters");
-        win_wfp_block_service(false, false, index, msg_channel);
+        msg(D_LOW, "Using service to delete block dns filters");
+        win_block_dns_service(false, index, msg_channel);
     }
     else
     {
-        delete_wfp_block_filters(m_hEngineHandle);
+        delete_block_dns_filters(m_hEngineHandle);
         m_hEngineHandle = NULL;
         if (tap_metric_v4 >= 0)
         {
@@ -1281,6 +1294,42 @@ win_wfp_uninit(const NET_IFINDEX index, const HANDLE msg_channel)
     }
 
     return true;
+}
+
+int
+win32_version_info(void)
+{
+    if (!IsWindowsXPOrGreater())
+    {
+        msg(M_FATAL, "Error: Windows version must be XP or greater.");
+    }
+
+    if (!IsWindowsVistaOrGreater())
+    {
+        return WIN_XP;
+    }
+
+    if (!IsWindows7OrGreater())
+    {
+        return WIN_VISTA;
+    }
+
+    if (!IsWindows8OrGreater())
+    {
+        return WIN_7;
+    }
+
+    if (!IsWindows8Point1OrGreater())
+    {
+        return WIN_8;
+    }
+
+    if (!IsWindows10OrGreater())
+    {
+        return WIN_8_1;
+    }
+
+    return WIN_10;
 }
 
 typedef enum {
@@ -1384,39 +1433,51 @@ win32_print_arch(arch_t arch, struct buffer *out)
     }
 }
 
-typedef LONG (WINAPI *RtlGetVersionPtr)(PRTL_OSVERSIONINFOW);
-
 const char *
-win32_version_string(struct gc_arena *gc)
+win32_version_string(struct gc_arena *gc, bool add_name)
 {
-    HMODULE hMod = GetModuleHandleW(L"ntdll.dll");
-    if (!hMod)
-    {
-        return "N/A";
-    }
-
-    RtlGetVersionPtr fn = (RtlGetVersionPtr)GetProcAddress(hMod, "RtlGetVersion");
-    if (!fn)
-    {
-        return "N/A";
-    }
-
-    RTL_OSVERSIONINFOW rovi = { 0 };
-    rovi.dwOSVersionInfoSize = sizeof(rovi);
-    if (fn(&rovi) != 0)
-    {
-        return "N/A";
-    }
-
+    int version = win32_version_info();
     struct buffer out = alloc_buf_gc(256, gc);
 
-    buf_printf(&out, "%lu.%lu.%lu", rovi.dwMajorVersion, rovi.dwMinorVersion, rovi.dwBuildNumber);
+    switch (version)
+    {
+        case WIN_XP:
+            buf_printf(&out, "5.1%s", add_name ? " (Windows XP)" : "");
+            break;
 
-    buf_printf(&out, ",");
+        case WIN_VISTA:
+            buf_printf(&out, "6.0%s", add_name ? " (Windows Vista)" : "");
+            break;
+
+        case WIN_7:
+            buf_printf(&out, "6.1%s", add_name ? " (Windows 7)" : "");
+            break;
+
+        case WIN_8:
+            buf_printf(&out, "6.2%s", add_name ? " (Windows 8)" : "");
+            break;
+
+        case WIN_8_1:
+            buf_printf(&out, "6.3%s", add_name ? " (Windows 8.1)" : "");
+            break;
+
+        case WIN_10:
+            buf_printf(&out, "10.0%s", add_name ? " (Windows 10 or greater)" : "");
+            break;
+
+        default:
+            msg(M_NONFATAL, "Unknown Windows version: %d", version);
+            buf_printf(&out, "0.0%s", add_name ? " (unknown)" : "");
+            break;
+    }
+
+    buf_printf(&out, ", ");
 
     arch_t process_arch, host_arch;
     win32_get_arch(&process_arch, &host_arch);
     win32_print_arch(process_arch, &out);
+
+    buf_printf(&out, " executable");
 
     if (host_arch != ARCH_NATIVE)
     {
@@ -1450,11 +1511,26 @@ send_msg_iservice(HANDLE pipe, const void *data, size_t size,
 }
 
 bool
+openvpn_swprintf(wchar_t *const str, const size_t size, const wchar_t *const format, ...)
+{
+    va_list arglist;
+    int len = -1;
+    if (size > 0)
+    {
+        va_start(arglist, format);
+        len = vswprintf(str, size, format, arglist);
+        va_end(arglist);
+        str[size - 1] = L'\0';
+    }
+    return (len >= 0 && len < size);
+}
+
+bool
 get_openvpn_reg_value(const WCHAR *key, WCHAR *value, DWORD size)
 {
     WCHAR reg_path[256];
     HKEY hkey;
-    swprintf(reg_path, _countof(reg_path), L"SOFTWARE\\" PACKAGE_NAME);
+    openvpn_swprintf(reg_path, _countof(reg_path), L"SOFTWARE\\" PACKAGE_NAME);
 
     LONG status = RegOpenKeyExW(HKEY_LOCAL_MACHINE, reg_path, 0, KEY_READ, &hkey);
     if (status != ERROR_SUCCESS)
@@ -1470,7 +1546,7 @@ get_openvpn_reg_value(const WCHAR *key, WCHAR *value, DWORD size)
 }
 
 static void
-set_openssl_env_vars(void)
+set_openssl_env_vars()
 {
     const WCHAR *ssl_fallback_dir = L"C:\\Windows\\System32";
 
@@ -1480,7 +1556,7 @@ set_openssl_env_vars(void)
         /* if we cannot find installation path from the registry,
          * use Windows directory as a fallback
          */
-        swprintf(install_path, _countof(install_path), L"%ls", ssl_fallback_dir);
+        openvpn_swprintf(install_path, _countof(install_path), L"%ls", ssl_fallback_dir);
     }
 
     if ((install_path[wcslen(install_path) - 1]) == L'\\')
@@ -1505,7 +1581,7 @@ set_openssl_env_vars(void)
         if (size == 0)
         {
             WCHAR val[MAX_PATH] = {0};
-            swprintf(val, _countof(val), L"%ls\\ssl\\%ls", install_path, ossl_env[i].value);
+            openvpn_swprintf(val, _countof(val), L"%ls\\ssl\\%ls", install_path, ossl_env[i].value);
             _wputenv_s(ossl_env[i].name, val);
         }
     }

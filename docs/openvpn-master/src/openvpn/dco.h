@@ -5,9 +5,9 @@
  *             packet encryption, packet authentication, and
  *             packet compression.
  *
- *  Copyright (C) 2021-2025 Arne Schwabe <arne@rfc2549.org>
- *  Copyright (C) 2021-2025 Antonio Quartulli <a@unstable.cc>
- *  Copyright (C) 2021-2025 OpenVPN Inc <sales@openvpn.net>
+ *  Copyright (C) 2021-2024 Arne Schwabe <arne@rfc2549.org>
+ *  Copyright (C) 2021-2024 Antonio Quartulli <a@unstable.cc>
+ *  Copyright (C) 2021-2024 OpenVPN Inc <sales@openvpn.net>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License version 2
@@ -106,10 +106,9 @@ bool dco_check_pull_options(int msglevel, const struct options *o);
  *
  * @param mode      the instance operating mode (P2P or multi-peer)
  * @param dco       the context to initialize
- * @param dev_node  device node, used on Windows to specify certain DCO adapter
  * @return          true on success, false otherwise
  */
-bool ovpn_dco_init(int mode, dco_context_t *dco, const char *dev_node);
+bool ovpn_dco_init(int mode, dco_context_t *dco);
 
 /**
  * Open/create a DCO interface
@@ -231,37 +230,25 @@ void dco_delete_iroutes(struct multi_context *m, struct multi_instance *mi);
 /**
  * Update traffic statistics for all peers
  *
- * @param dco                   DCO device context
- * @param m                     the server context
- * @param raise_sigusr1_on_err  whether to raise SIGUSR1 on error
+ * @param dco   DCO device context
+ * @param m     the server context
  **/
-int dco_get_peer_stats_multi(dco_context_t *dco, struct multi_context *m,
-                             const bool raise_sigusr1_on_err);
+int dco_get_peer_stats_multi(dco_context_t *dco, struct multi_context *m);
 
 /**
  * Update traffic statistics for single peer
  *
- * @param c                     instance context of the peer
- * @param raise_sigusr1_on_err  whether to raise SIGUSR1 on error
+ * @param c   instance context of the peer
  **/
-int dco_get_peer_stats(struct context *c, const bool raise_sigusr1_on_err);
+int dco_get_peer_stats(struct context *c);
 
 /**
  * Retrieve the list of ciphers supported by the current platform
  *
  * @return                   list of colon-separated ciphers
  */
-const char *dco_get_supported_ciphers(void);
+const char *dco_get_supported_ciphers();
 
-/**
- * Return whether the dco implementation supports the new protocol features of
- * a 64 bit packet counter and AEAD tag at the end.
- */
-static inline bool
-dco_supports_epoch_data(struct context *c)
-{
-    return false;
-}
 #else /* if defined(ENABLE_DCO) */
 
 typedef void *dco_context_t;
@@ -297,7 +284,7 @@ dco_check_pull_options(int msglevel, const struct options *o)
 }
 
 static inline bool
-ovpn_dco_init(int mode, dco_context_t *dco, const char *dev_node)
+ovpn_dco_init(int mode, dco_context_t *dco)
 {
     return true;
 }
@@ -376,28 +363,22 @@ dco_delete_iroutes(struct multi_context *m, struct multi_instance *mi)
 }
 
 static inline int
-dco_get_peer_stats_multi(dco_context_t *dco, struct multi_context *m,
-                         const bool raise_sigusr1_on_err)
+dco_get_peer_stats_multi(dco_context_t *dco, struct multi_context *m)
 {
     return 0;
 }
 
 static inline int
-dco_get_peer_stats(struct context *c, const bool raise_sigusr1_on_err)
+dco_get_peer_stats(struct context *c)
 {
     return 0;
 }
 
 static inline const char *
-dco_get_supported_ciphers(void)
+dco_get_supported_ciphers()
 {
     return "";
 }
 
-static inline bool
-dco_supports_epoch_data(struct context *c)
-{
-    return false;
-}
 #endif /* defined(ENABLE_DCO) */
 #endif /* ifndef DCO_H */

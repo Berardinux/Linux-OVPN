@@ -5,7 +5,7 @@
  *             packet encryption, packet authentication, and
  *             packet compression.
  *
- *  Copyright (C) 2002-2025 OpenVPN Inc <sales@openvpn.net>
+ *  Copyright (C) 2002-2024 OpenVPN Inc <sales@openvpn.net>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License version 2
@@ -32,7 +32,6 @@
 #include "multi.h"
 #include "win32.h"
 #include "platform.h"
-#include "string.h"
 
 #include "memdbg.h"
 
@@ -61,10 +60,9 @@ tunnel_point_to_point(struct context *c)
 
     /* set point-to-point mode */
     c->mode = CM_P2P;
-    /* initialize tunnel instance, avoid SIGHUP when config is stdin since
-     * re-reading the config from stdin will not work */
-    bool stdin_config = c->options.config && (strcmp(c->options.config, "stdin") == 0);
-    init_instance_handle_signals(c, c->es, stdin_config ? 0 : CC_HARD_USR1_TO_HUP);
+
+    /* initialize tunnel instance */
+    init_instance_handle_signals(c, c->es, CC_HARD_USR1_TO_HUP);
     if (IS_SIG(c))
     {
         return;
@@ -91,7 +89,7 @@ tunnel_point_to_point(struct context *c)
         }
 
         /* process the I/O which triggered select */
-        process_io(c, c->c2.link_sockets[0]);
+        process_io(c);
         P2P_CHECK_SIG();
 
         perf_pop();
@@ -194,6 +192,7 @@ openvpn_main(int argc, char *argv[])
             context_clear_all_except_first_time(&c);
 
             /* static signal info object */
+            CLEAR(siginfo_static);
             c.sig = &siginfo_static;
 
             /* initialize garbage collector scoped to context object */
@@ -274,10 +273,10 @@ openvpn_main(int argc, char *argv[])
 
             /* Query passwords before becoming a daemon if we don't use the
              * management interface to get them. */
+#ifdef ENABLE_MANAGEMENT
             if (!(c.options.management_flags & MF_QUERY_PASSWORDS))
-            {
-                init_query_passwords(&c);
-            }
+#endif
+            init_query_passwords(&c);
 
             /* become a daemon if --daemon */
             if (c.first_time)
@@ -334,14 +333,14 @@ openvpn_main(int argc, char *argv[])
                 /* pass restart status to management subsystem */
                 signal_restart_status(c.sig);
             }
-            while (signal_reset(c.sig, SIGUSR1) == SIGUSR1);
+            while (c.sig->signal_received == SIGUSR1);
 
             env_set_destroy(c.es);
             uninit_options(&c.options);
             gc_reset(&c.gc);
             uninit_early(&c);
         }
-        while (signal_reset(c.sig, SIGHUP) == SIGHUP);
+        while (c.sig->signal_received == SIGHUP);
     }
 
     context_gc_free(&c);

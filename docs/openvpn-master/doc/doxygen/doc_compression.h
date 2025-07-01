@@ -23,8 +23,7 @@
  */
 
 /**
- * @file
- * Data Channel Compression module documentation file.
+ * @file Data Channel Compression module documentation file.
  */
 
 /**

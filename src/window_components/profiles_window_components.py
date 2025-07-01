@@ -210,7 +210,7 @@ class ProfilesWindowUIComponents:
                     temp_pass_file.write(passwd + "\n")
                     temp_pass_file.close()
                     openvpn_args = [
-                            "pkexec", "openvpn", 
+                            "pkexec", "/opt/LinuxOVPN/docs/openvpn-local/sbin/openvpn", 
                             "--config", vpn_path, 
                             "--askpass", temp_pass_file.name,
                             "--status", status_path, "1",
@@ -218,7 +218,7 @@ class ProfilesWindowUIComponents:
                             ]
                 else:
                     openvpn_args = [
-                            "pkexec", "openvpn", 
+                            "pkexec", "/opt/LinuxOVPN/docs/openvpn-local/sbin/openvpn", 
                             "--config", vpn_path,
                             "--status", status_path, "1",
                             "--status-output-mode", "644"

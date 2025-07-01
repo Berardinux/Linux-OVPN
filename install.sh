@@ -61,25 +61,6 @@ if [ "$prompt_user" = 1 ]; then
             echo "# (ERROR) That was not a valid option, try again"
         fi
     done
-
-
-fi
-
-if [ -z "$install" ] || [ "$install" = Y ] || [ "$install" = y ]; then
-
-    if [ "$pkg_manager" = apt ]; then
-        sudo apt update && sudo apt upgrade -y && sudo apt install openvpn -y
-    elif [ "$pkg_manager" = dnf ]; then
-        sudo dnf update && sudo dnf install openvpn -y
-    elif [ "$pkg_manager" = yum ]; then
-        sudo yum update && sudo yum install openvpn -y
-    elif [ "$pkg_manager" = pacman ]; then
-        sudo pacman -Syu && sudo pacman -S --noconfirm openvpn
-    elif [ "$pkg_manager" = apk ]; then
-        sudo apk update && sudo apk install openvpn -y
-    elif [ "$pkg_manager" = zypper ]; then
-        sudo zypper update && sudo zypper install openvpn -you
-    fi
 fi
 
 if [ -z "$app" ] || [ "$app" = Y ] || [ "$app" = y ]; then
@@ -88,11 +69,11 @@ if [ -z "$app" ] || [ "$app" = Y ] || [ "$app" = y ]; then
     touch "/home/$current_user/.local/share/applications/LinuxOVPN.desktop"
     sudo chown -R $current_user:$current_user /opt/LinuxOVPN
     sudo chmod -R 755 /opt/LinuxOVPN/
-    sudo chmod -R 777 /opt/LinuxOVPN/docs/user_ovpn_files
+    sudo chmod -R 777 /opt/LinuxOVPN/docs
     sudo chmod -R 777 /opt/LinuxOVPN/config
     chmod 644 "/home/$current_user/.local/share/applications/LinuxOVPN.desktop"
     
-    cat << EOM | sudo tee -a "/home/$current_user/.local/share/applications/LinuxOVPN.desktop" >/dev/null
+    cat << EOM | sudo tee "/home/$current_user/.local/share/applications/LinuxOVPN.desktop" >/dev/null
 [Desktop Entry]
 Type=Application
 Name=LinuxOVPN
@@ -103,5 +84,141 @@ Path=/opt/LinuxOVPN/src
 Terminal=false
 EOM
     
-    echo "###### Installation complete! ######"
+    echo "###### LinuxOVPN Installation complete! ######"
 fi
+
+if [ -z "$install" ] || [ "$install" = Y ] || [ "$install" = y ]; then
+    if [ "$pkg_manager" = apt ]; then
+        sudo apt update && sudo apt upgrade -y
+        sudo apt install -y \
+            build-essential \
+            pkg-config \
+            libssl-dev \
+            liblzo2-dev \
+            liblz4-dev \
+            libpam0g-dev \
+            libpkcs11-helper1-dev \
+            libtool \
+            automake \
+            autoconf \
+            libsystemd-dev \
+            libnl-3-dev \
+            libnl-genl-3-dev \
+            libcap-ng-dev \
+            python3-docutils
+
+    elif [ "$pkg_manager" = dnf ]; then
+        sudo dnf update -y
+        sudo dnf install -y \
+            gcc \
+            make \
+            automake \
+            autoconf \
+            libtool \
+            pkgconf-pkg-config \
+            openssl-devel \
+            lzo-devel \
+            lz4-devel \
+            pam-devel \
+            pkcs11-helper-devel \
+            systemd-devel \
+            libcap-ng-devel \
+            python3-docutils
+
+    elif [ "$pkg_manager" = yum ]; then
+        sudo yum update -y
+        sudo yum install -y \
+            gcc \
+            make \
+            automake \
+            autoconf \
+            libtool \
+            pkgconfig \
+            openssl-devel \
+            lzo-devel \
+            lz4-devel \
+            pam-devel \
+            pkcs11-helper-devel \
+            systemd-devel \
+            libcap-ng-devel \
+            python3-docutils
+
+    elif [ "$pkg_manager" = pacman ]; then
+        sudo pacman -Syu --noconfirm
+        sudo pacman -S --noconfirm \
+            base-devel \
+            openssl \
+            lzo \
+            lz4 \
+            pam \
+            pkcs11-helper \
+            systemd \
+            libcap-ng \
+            python-docutils
+
+    elif [ "$pkg_manager" = apk ]; then
+        sudo apk update
+        sudo apk add --no-cache \
+            build-base \
+            openssl-dev \
+            lzo-dev \
+            lz4-dev \
+            linux-pam-dev \
+            pkcs11-helper-dev \
+            autoconf \
+            automake \
+            libtool \
+            libcap-ng-dev \
+            py3-docutils
+
+    elif [ "$pkg_manager" = zypper ]; then
+        sudo zypper refresh
+        sudo zypper update -y
+        sudo zypper install -y \
+            gcc \
+            make \
+            automake \
+            autoconf \
+            libtool \
+            pkg-config \
+            libopenssl-devel \
+            lzo-devel \
+            lz4-devel \
+            pam-devel \
+            pkcs11-helper-devel \
+            libsystemd-dev \
+            libcap-ng-devel \
+            python3-docutils
+    fi
+
+    echo "### Building OpenVPN ###"
+
+    cd /opt/LinuxOVPN/docs/openvpn-master || {
+        echo "ERROR: OpenVPN source directory missing at /opt/LinuxOVPN/docs/openvpn-master"
+        exit 1
+    }
+
+    if [ -f autogen.sh ]; then
+        echo "Running autogen.sh"
+        ./autogen.sh
+    fi
+
+    if [ -f configure.ac ]; then
+        echo "Running autoreconf..."
+        autoreconf -vi
+    fi
+
+    ./configure --prefix=/opt/LinuxOVPN/docs/openvpn-local \
+        --disable-dependency-tracking \
+        --enable-pkcs11 \
+        --enable-systemd \
+        --enable-async-push
+
+    make -j$(nproc)
+    make install
+
+    echo "### OpenVPN build complete! Installed to /opt/LinuxOVPN/docs/openvpn-local ###"
+fi
+
+
+

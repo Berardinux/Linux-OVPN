@@ -39,6 +39,7 @@ Here is an example of connection profile usage::
    http-proxy 192.168.0.8 8080
    </connection>
 
+   persist-key
    persist-tun
    pkcs12 client.p12
    remote-cert-tls server

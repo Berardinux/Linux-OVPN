@@ -1,11 +1,4 @@
 {
     "theme": "dark",
-    "profiles": {
-        "Berardinux": {
-            "host": "berardinux.com",
-            "used_passwd": true,
-            "passwd": "zSaM+uV<^/HG`KeJt^hH",
-            "filename": "Berardinux.ovpn"
-        }
-    }
+    "profiles": {}
 }

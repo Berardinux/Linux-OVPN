@@ -5,7 +5,7 @@
  *             packet encryption, packet authentication, and
  *             packet compression.
  *
- *  Copyright (C) 2013-2025 Heiko Hund <heiko.hund@sophos.com>
+ *  Copyright (C) 2013-2024 Heiko Hund <heiko.hund@sophos.com>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License version 2
@@ -24,9 +24,6 @@
 #ifndef OPENVPN_MSG_H_
 #define OPENVPN_MSG_H_
 
-#include <windef.h>
-#include <ws2tcpip.h>
-
 typedef enum {
     msg_acknowledgement,
     msg_add_address,
@@ -35,20 +32,17 @@ typedef enum {
     msg_del_route,
     msg_add_dns_cfg,
     msg_del_dns_cfg,
-    msg_add_nrpt_cfg,
-    msg_del_nrpt_cfg,
     msg_add_nbt_cfg,
     msg_del_nbt_cfg,
     msg_flush_neighbors,
-    msg_add_wfp_block,
-    msg_del_wfp_block,
+    msg_add_block_dns,
+    msg_del_block_dns,
     msg_register_dns,
     msg_enable_dhcp,
-    deprecated_msg_register_ring_buffers,
+    msg_register_ring_buffers,
     msg_set_mtu,
     msg_add_wins_cfg,
-    msg_del_wins_cfg,
-    msg_create_adapter
+    msg_del_wins_cfg
 } message_type_t;
 
 typedef struct {
@@ -66,11 +60,6 @@ typedef struct {
     int index;
     char name[256];
 } interface_t;
-
-typedef enum {
-    wfp_block_local = 1<<0,
-    wfp_block_dns = 1<<1
-} wfp_block_flags_t;
 
 typedef struct {
     message_header_t header;
@@ -98,23 +87,6 @@ typedef struct {
     int addr_len;
     inet_address_t addr[4]; /* support up to 4 dns addresses */
 } dns_cfg_message_t;
-
-
-typedef enum {
-    nrpt_dnssec
-} nrpt_flags_t;
-
-#define NRPT_ADDR_NUM 8   /* Max. number of addresses */
-#define NRPT_ADDR_SIZE 48 /* Max. address strlen + some */
-typedef char nrpt_address_t[NRPT_ADDR_SIZE];
-typedef struct {
-    message_header_t header;
-    interface_t iface;
-    nrpt_address_t addresses[NRPT_ADDR_NUM];
-    char resolve_domains[512]; /* double \0 terminated */
-    char search_domains[512];
-    nrpt_flags_t flags;
-} nrpt_dns_cfg_message_t;
 
 typedef struct {
     message_header_t header;
@@ -148,9 +120,8 @@ typedef struct {
 
 typedef struct {
     message_header_t header;
-    wfp_block_flags_t flags;
     interface_t iface;
-} wfp_block_message_t;
+} block_dns_message_t;
 
 typedef struct {
     message_header_t header;
@@ -159,19 +130,18 @@ typedef struct {
 
 typedef struct {
     message_header_t header;
+    HANDLE device;
+    HANDLE send_ring_handle;
+    HANDLE receive_ring_handle;
+    HANDLE send_tail_moved;
+    HANDLE receive_tail_moved;
+} register_ring_buffers_message_t;
+
+typedef struct {
+    message_header_t header;
     interface_t iface;
     short family;
     int mtu;
 } set_mtu_message_t;
-
-typedef enum {
-    ADAPTER_TYPE_DCO,
-    ADAPTER_TYPE_TAP,
-} adapter_type_t;
-
-typedef struct {
-    message_header_t header;
-    adapter_type_t adapter_type;
-} create_adapter_message_t;
 
 #endif /* ifndef OPENVPN_MSG_H_ */

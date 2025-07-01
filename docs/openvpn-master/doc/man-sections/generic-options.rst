@@ -299,6 +299,17 @@ which mode OpenVPN is configured as.
   Change process priority after initialization (``n`` greater than 0 is
   lower priority, ``n`` less than zero is higher priority).
 
+--persist-key
+  Don't re-read key files across :code:`SIGUSR1` or ``--ping-restart``.
+
+  This option can be combined with ``--user`` to allow restarts
+  triggered by the :code:`SIGUSR1` signal. Normally if you drop root
+  privileges in OpenVPN, the daemon cannot be restarted since it will now
+  be unable to re-read protected key files.
+
+  This option solves the problem by persisting keys across :code:`SIGUSR1`
+  resets, so they don't need to be re-read.
+
 --providers providers
   Load the list of (OpenSSL) providers. This is mainly useful for using an
   external provider for key management like tpm2-openssl or to load the
@@ -388,7 +399,7 @@ which mode OpenVPN is configured as.
 
   Like with chroot, complications can result when scripts or restarts are
   executed after the setcon operation, which is why you should really
-  consider using the ``--persist-tun`` option.
+  consider using the ``--persist-key`` and ``--persist-tun`` options.
 
 --status args
   Write operational status to ``file`` every ``n`` seconds. ``n`` defaults
@@ -454,11 +465,12 @@ which mode OpenVPN is configured as.
   independently of network and tunnel issues.
 
 --tmp-dir dir
-  Specify a directory ``dir`` for temporary files instead of the default
-  :code:`TMPDIR` (or "/tmp" if unset). Note that it must be writable by the main
-  process after it has dropped root privileges.
+  Specify a directory ``dir`` for temporary files. This directory will be
+  used by openvpn processes and script to communicate temporary data with
+  openvpn main process. Note that the directory must be writable by the
+  OpenVPN process after it has dropped it's root privileges.
 
-  This directory will be used to communicate with scripts and plugins:
+  This directory will be used by in the following cases:
 
   * ``--client-connect`` scripts and :code:`OPENVPN_PLUGIN_CLIENT_CONNECT`
     plug-in hook to dynamically generate client-specific configuration
@@ -468,7 +480,7 @@ which mode OpenVPN is configured as.
 
   * :code:`OPENVPN_PLUGIN_AUTH_USER_PASS_VERIFY` plug-in hooks returns
     success/failure via :code:`auth_control_file` when using deferred auth
-    method and pending authentication via :code:`auth_pending_file`.
+    method and pending authentication via :code:`pending_auth_file`.
 
 --use-prediction-resistance
   Enable prediction resistance on mbed TLS's RNG.

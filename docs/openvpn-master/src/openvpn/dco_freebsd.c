@@ -75,7 +75,7 @@ sockaddr_to_nvlist(const struct sockaddr *sa)
 int
 dco_new_peer(dco_context_t *dco, unsigned int peerid, int sd,
              struct sockaddr *localaddr, struct sockaddr *remoteaddr,
-             struct in_addr *vpn_ipv4, struct in6_addr *vpn_ipv6)
+             struct in_addr *remote_in4, struct in6_addr *remote_in6)
 {
     struct ifdrv drv;
     nvlist_t *nvl, *local_nvl, *remote_nvl;
@@ -97,15 +97,15 @@ dco_new_peer(dco_context_t *dco, unsigned int peerid, int sd,
         nvlist_add_nvlist(nvl, "remote", remote_nvl);
     }
 
-    if (vpn_ipv4)
+    if (remote_in4)
     {
-        nvlist_add_binary(nvl, "vpn_ipv4", &vpn_ipv4->s_addr,
-                          sizeof(vpn_ipv4->s_addr));
+        nvlist_add_binary(nvl, "vpn_ipv4", &remote_in4->s_addr,
+                          sizeof(remote_in4->s_addr));
     }
 
-    if (vpn_ipv6)
+    if (remote_in6)
     {
-        nvlist_add_binary(nvl, "vpn_ipv6", vpn_ipv6, sizeof(*vpn_ipv6));
+        nvlist_add_binary(nvl, "vpn_ipv6", remote_in6, sizeof(*remote_in6));
     }
 
     nvlist_add_number(nvl, "fd", sd);
@@ -165,7 +165,7 @@ close_fd(dco_context_t *dco)
 }
 
 bool
-ovpn_dco_init(int mode, dco_context_t *dco, const char *dev_node)
+ovpn_dco_init(int mode, dco_context_t *dco)
 {
     if (open_fd(dco) < 0)
     {
@@ -713,8 +713,7 @@ dco_update_peer_stat(struct multi_context *m, uint32_t peerid, const nvlist_t *n
 }
 
 int
-dco_get_peer_stats_multi(dco_context_t *dco, struct multi_context *m,
-                         const bool raise_sigusr1_on_err)
+dco_get_peer_stats_multi(dco_context_t *dco, struct multi_context *m)
 {
 
     struct ifdrv drv;
@@ -782,14 +781,14 @@ retry:
 }
 
 int
-dco_get_peer_stats(struct context *c, const bool raise_sigusr1_on_err)
+dco_get_peer_stats(struct context *c)
 {
     /* Not implemented. */
     return 0;
 }
 
 const char *
-dco_get_supported_ciphers(void)
+dco_get_supported_ciphers()
 {
     return "none:AES-256-GCM:AES-192-GCM:AES-128-GCM:CHACHA20-POLY1305";
 }

@@ -5,7 +5,7 @@
  *             packet encryption, packet authentication, and
  *             packet compression.
  *
- *  Copyright (C) 2002-2025 OpenVPN Inc <sales@openvpn.net>
+ *  Copyright (C) 2002-2024 OpenVPN Inc <sales@openvpn.net>
  *  Copyright (C) 2010-2021 Fox Crypto B.V. <openvpn@foxcrypto.com>
  *
  *  This program is free software; you can redistribute it and/or modify
@@ -23,8 +23,7 @@
  */
 
 /**
- * @file
- * Control Channel OpenSSL Backend
+ * @file Control Channel OpenSSL Backend
  */
 
 #ifdef HAVE_CONFIG_H
@@ -51,7 +50,6 @@
 #endif
 
 #include "ssl_verify_openssl.h"
-#include "ssl_util.h"
 
 #include <openssl/bn.h>
 #include <openssl/crypto.h>
@@ -64,12 +62,6 @@
 #include <openssl/ssl.h>
 #ifndef OPENSSL_NO_EC
 #include <openssl/ec.h>
-#endif
-
-#if OPENSSL_VERSION_NUMBER >= 0x30000000L
-#define HAVE_OPENSSL_STORE_API
-#include <openssl/ui.h>
-#include <openssl/store.h>
 #endif
 
 #if defined(_MSC_VER) && !defined(_M_ARM64)
@@ -91,6 +83,13 @@ int mydata_index; /* GLOBAL */
 void
 tls_init_lib(void)
 {
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
+    SSL_library_init();
+#ifndef ENABLE_SMALL
+    SSL_load_error_strings();
+#endif
+    OpenSSL_add_all_algorithms();
+#endif
     mydata_index = SSL_get_ex_new_index(0, "struct session *", NULL, NULL, NULL);
     ASSERT(mydata_index >= 0);
 }
@@ -98,6 +97,12 @@ tls_init_lib(void)
 void
 tls_free_lib(void)
 {
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
+    EVP_cleanup();
+#ifndef ENABLE_SMALL
+    ERR_free_strings();
+#endif
+#endif
 }
 
 void
@@ -354,7 +359,7 @@ tls_ctx_set_options(struct tls_root_ctx *ctx, unsigned int ssl_flags)
     return true;
 }
 
-static void
+void
 convert_tls_list_to_openssl(char *openssl_ciphers, size_t len, const char *ciphers)
 {
     /* Parse supplied cipher list and pass on to OpenSSL */
@@ -461,7 +466,7 @@ tls_ctx_restrict_ciphers(struct tls_root_ctx *ctx, const char *ciphers)
     }
 }
 
-static void
+void
 convert_tls13_list_to_openssl(char *openssl_ciphers, size_t len,
                               const char *ciphers)
 {
@@ -520,8 +525,7 @@ tls_ctx_restrict_ciphers_tls13(struct tls_root_ctx *ctx, const char *ciphers)
 void
 tls_ctx_set_cert_profile(struct tls_root_ctx *ctx, const char *profile)
 {
-#if OPENSSL_VERSION_NUMBER > 0x10100000L \
-    && (!defined(LIBRESSL_VERSION_NUMBER) || LIBRESSL_VERSION_NUMBER >  0x3060000fL)
+#if OPENSSL_VERSION_NUMBER > 0x10100000L && !defined(LIBRESSL_VERSION_NUMBER)
     /* OpenSSL does not have certificate profiles, but a complex set of
      * callbacks that we could try to implement to achieve something similar.
      * For now, use OpenSSL's security levels to achieve similar (but not equal)
@@ -550,7 +554,7 @@ tls_ctx_set_cert_profile(struct tls_root_ctx *ctx, const char *profile)
 #else  /* if OPENSSL_VERSION_NUMBER > 0x10100000L */
     if (profile)
     {
-        msg(M_WARN, "WARNING: OpenSSL 1.1.0 and LibreSSL do not support "
+        msg(M_WARN, "WARNING: OpenSSL 1.0.2 and LibreSSL do not support "
             "--tls-cert-profile, ignoring user-set profile: '%s'", profile);
     }
 #endif /* if OPENSSL_VERSION_NUMBER > 0x10100000L */
@@ -739,6 +743,15 @@ tls_ctx_load_ecdh_params(struct tls_root_ctx *ctx, const char *curve_name)
     }
     else
     {
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
+
+        /* OpenSSL 1.0.2 and newer can automatically handle ECDH parameter
+         * loading */
+        SSL_CTX_set_ecdh_auto(ctx->ctx, 1);
+
+        /* OpenSSL 1.1.0 and newer have always ecdh auto loading enabled,
+         * so do nothing */
+#endif
         return;
     }
 
@@ -773,135 +786,6 @@ tls_ctx_load_ecdh_params(struct tls_root_ctx *ctx, const char *curve_name)
     msg(D_LOW, "Your OpenSSL library was built without elliptic curve support."
         " Skipping ECDH parameter loading.");
 #endif /* OPENSSL_NO_EC */
-}
-
-#if defined(HAVE_OPENSSL_STORE_API)
-/**
- * A wrapper for password callback for use with OpenSSL UI_METHOD.
- * The callback is obtained using SSL_CTX_get_default_passwd_cb()
- * which is set to pem_password_callback() in tls_ctx_set_options().
- */
-static int
-ui_reader(UI *ui, UI_STRING *uis)
-{
-    SSL_CTX *ctx = UI_get0_user_data(ui);
-
-    if (UI_get_string_type(uis) == UIT_PROMPT)
-    {
-        const char *prompt = UI_get0_output_string(uis);
-
-        /* If pkcs#11 Use custom prompt similar to pkcs11-helper */
-        if (strstr(prompt, "PKCS#11"))
-        {
-            struct user_pass up;
-            CLEAR(up);
-            get_user_pass(&up, NULL, "PKCS#11 token", GET_USER_PASS_MANAGEMENT|GET_USER_PASS_PASSWORD_ONLY);
-            UI_set_result(ui, uis, up.password);
-            purge_user_pass(&up, true);
-        }
-        else /* use our generic 'Private Key' passphrase callback */
-        {
-            char password[64];
-            pem_password_cb *cb = SSL_CTX_get_default_passwd_cb(ctx);
-            void *d = SSL_CTX_get_default_passwd_cb_userdata(ctx);
-
-            cb(password, sizeof(password), 0, d);
-            UI_set_result(ui, uis, password);
-            secure_memzero(password, sizeof(password));
-        }
-
-        return 1;
-    }
-    return 0;
-}
-
-static void
-clear_ossl_store_error(OSSL_STORE_CTX *store_ctx)
-{
-    if (OSSL_STORE_error(store_ctx))
-    {
-        ERR_clear_error();
-    }
-}
-#endif /* defined(HAVE_OPENSSL_STORE_API) */
-
-/**
- * Load private key from OSSL_STORE URI or file
- * uri : URI of object or filename
- * ssl_ctx : SSL_CTX for UI prompt
- *
- * Return a pointer to the key or NULL if not found.
- * Caller must free the key after use.
- */
-static void *
-load_pkey_from_uri(const char *uri, SSL_CTX *ssl_ctx)
-{
-    EVP_PKEY *pkey = NULL;
-
-#if !defined(HAVE_OPENSSL_STORE_API)
-
-    /* Treat the uri as file name */
-    BIO *in = BIO_new_file(uri, "r");
-    if (!in)
-    {
-        return NULL;
-    }
-    pkey = PEM_read_bio_PrivateKey(in, NULL,
-                                   SSL_CTX_get_default_passwd_cb(ssl_ctx),
-                                   SSL_CTX_get_default_passwd_cb_userdata(ssl_ctx));
-    BIO_free(in);
-
-#else /* defined(HAVE_OPENSSL_STORE_API) */
-
-    OSSL_STORE_CTX *store_ctx = NULL;
-    OSSL_STORE_INFO *info = NULL;
-
-    UI_METHOD *ui_method = UI_create_method("openvpn");
-    if (!ui_method)
-    {
-        msg(M_WARN, "OpenSSL UI creation failed");
-        return NULL;
-    }
-    UI_method_set_reader(ui_method, ui_reader);
-
-    store_ctx = OSSL_STORE_open_ex(uri, tls_libctx, NULL, ui_method, ssl_ctx,
-                                   NULL, NULL, NULL);
-    if (!store_ctx)
-    {
-        goto end;
-    }
-    if (OSSL_STORE_expect(store_ctx, OSSL_STORE_INFO_PKEY) != 1)
-    {
-        goto end;
-    }
-    while (1)
-    {
-        info = OSSL_STORE_load(store_ctx);
-        if (info || OSSL_STORE_eof(store_ctx))
-        {
-            break;
-        }
-        /* OPENSSL_STORE_load can return error and still have usable objects to follow.
-         * ref: man OPENSSL_STORE_open
-         * Clear error and recurse through the file if info = NULL and eof not reached
-         */
-        clear_ossl_store_error(store_ctx);
-    }
-    if (!info)
-    {
-        goto end;
-    }
-    pkey = OSSL_STORE_INFO_get1_PKEY(info);
-    OSSL_STORE_INFO_free(info);
-    msg(D_TLS_DEBUG_MED, "Found pkey in store using URI: %s", uri);
-
-end:
-    OSSL_STORE_close(store_ctx);
-    UI_destroy_method(ui_method);
-
-#endif /* defined(HAVE_OPENSSL_STORE_API) */
-
-    return pkey;
 }
 
 int
@@ -1081,121 +965,9 @@ tls_ctx_add_extra_certs(struct tls_root_ctx *ctx, BIO *bio, bool optional)
     }
 }
 
-static bool
-cert_uri_supported(void)
-{
-#if defined(HAVE_OPENSSL_STORE_API)
-    return 1;
-#else
-    return 0;
-#endif
-}
-
-static void
-tls_ctx_load_cert_uri(struct tls_root_ctx *tls_ctx, const char *uri)
-{
-#if defined(HAVE_OPENSSL_STORE_API)
-    X509 *x = NULL;
-    int ret = 0;
-    OSSL_STORE_CTX *store_ctx = NULL;
-    OSSL_STORE_INFO *info = NULL;
-
-    ASSERT(NULL != tls_ctx);
-
-    UI_METHOD *ui_method = UI_create_method("openvpn");
-    if (!ui_method)
-    {
-        msg(M_WARN, "OpenSSL UI method creation failed");
-        goto end;
-    }
-    UI_method_set_reader(ui_method, ui_reader);
-
-    store_ctx = OSSL_STORE_open_ex(uri, tls_libctx, NULL, ui_method, tls_ctx->ctx,
-                                   NULL, NULL, NULL);
-    if (!store_ctx)
-    {
-        goto end;
-    }
-    if (OSSL_STORE_expect(store_ctx, OSSL_STORE_INFO_CERT) != 1)
-    {
-        goto end;
-    }
-
-    while (1)
-    {
-        info = OSSL_STORE_load(store_ctx);
-        if (info || OSSL_STORE_eof(store_ctx))
-        {
-            break;
-        }
-        /* OPENSSL_STORE_load can return error and still have usable objects to follow.
-         * ref: man OPENSSL_STORE_open
-         * Clear error and recurse through the file if info = NULL and eof not reached.
-         */
-        clear_ossl_store_error(store_ctx);
-    }
-    if (!info)
-    {
-        goto end;
-    }
-
-    x = OSSL_STORE_INFO_get0_CERT(info);
-    if (x == NULL)
-    {
-        goto end;
-    }
-    msg(D_TLS_DEBUG_MED, "Found cert in store using URI: %s", uri);
-
-    ret = SSL_CTX_use_certificate(tls_ctx->ctx, x);
-    if (!ret)
-    {
-        goto end;
-    }
-    OSSL_STORE_INFO_free(info);
-    info = NULL;
-
-    /* iterate through the store and add extra certificates if any to the chain */
-    while (!OSSL_STORE_eof(store_ctx))
-    {
-        info = OSSL_STORE_load(store_ctx);
-        if (!info)
-        {
-            clear_ossl_store_error(store_ctx);
-            continue;
-        }
-        x = OSSL_STORE_INFO_get1_CERT(info);
-        if (x && SSL_CTX_add_extra_chain_cert(tls_ctx->ctx, x) != 1)
-        {
-            X509_free(x);
-            crypto_msg(M_FATAL, "Error adding extra certificate");
-            break;
-        }
-        OSSL_STORE_INFO_free(info);
-        info = NULL;
-    }
-
-end:
-    if (!ret)
-    {
-        crypto_print_openssl_errors(M_WARN);
-        crypto_msg(M_FATAL, "Cannot load certificate from URI <%s>", uri);
-    }
-    else
-    {
-        crypto_print_openssl_errors(M_DEBUG);
-    }
-
-    UI_destroy_method(ui_method);
-    OSSL_STORE_INFO_free(info);
-    OSSL_STORE_close(store_ctx);
-#else /* defined(HAVE_OPENSSL_STORE_API */
-    ASSERT(0);
-#endif /* defined(HAVE_OPENSSL_STORE_API */
-}
-
-static void
-tls_ctx_load_cert_pem_file(struct tls_root_ctx *ctx, const char *cert_file,
-                           bool cert_file_inline)
+void
+tls_ctx_load_cert_file(struct tls_root_ctx *ctx, const char *cert_file,
+                       bool cert_file_inline)
 {
     BIO *in = NULL;
     X509 *x = NULL;
@@ -1209,7 +981,7 @@ tls_ctx_load_cert_pem_file(struct tls_root_ctx *ctx, const char *cert_file,
     }
     else
     {
-        in = BIO_new_file((char *) cert_file, "r");
+        in = BIO_new_file(cert_file, "r");
     }
 
     if (in == NULL)
@@ -1255,20 +1027,6 @@ end:
     X509_free(x);
 }
 
-void
-tls_ctx_load_cert_file(struct tls_root_ctx *ctx, const char *cert_file,
-                       bool cert_file_inline)
-{
-    if (cert_uri_supported() && !cert_file_inline)
-    {
-        tls_ctx_load_cert_uri(ctx, cert_file);
-    }
-    else
-    {
-        tls_ctx_load_cert_pem_file(ctx, cert_file, cert_file_inline);
-    }
-}
-
 int
 tls_ctx_load_priv_file(struct tls_root_ctx *ctx, const char *priv_key_file,
                        bool priv_key_file_inline)
@@ -1285,18 +1043,20 @@ tls_ctx_load_priv_file(struct tls_root_ctx *ctx, const char *priv_key_file,
     if (priv_key_file_inline)
     {
         in = BIO_new_mem_buf((char *) priv_key_file, -1);
-        if (in == NULL)
-        {
-            goto end;
-        }
-        pkey = PEM_read_bio_PrivateKey(in, NULL,
-                                       SSL_CTX_get_default_passwd_cb(ctx->ctx),
-                                       SSL_CTX_get_default_passwd_cb_userdata(ctx->ctx));
     }
     else
     {
-        pkey = load_pkey_from_uri(priv_key_file, ssl_ctx);
+        in = BIO_new_file(priv_key_file, "r");
     }
+
+    if (!in)
+    {
+        goto end;
+    }
+
+    pkey = PEM_read_bio_PrivateKey(in, NULL,
+                                   SSL_CTX_get_default_passwd_cb(ctx->ctx),
+                                   SSL_CTX_get_default_passwd_cb_userdata(ctx->ctx));
 
     if (!pkey || !SSL_CTX_use_PrivateKey(ssl_ctx, pkey))
     {
@@ -1587,7 +1347,7 @@ err:
     return 0;
 }
 
-#if !defined(OPENSSL_NO_EC)
+#if OPENSSL_VERSION_NUMBER > 0x10100000L && !defined(OPENSSL_NO_EC)
 
 /* called when EC_KEY is destroyed */
 static void
@@ -1671,11 +1431,7 @@ tls_ctx_use_external_ec_key(struct tls_root_ctx *ctx, EVP_PKEY *pkey)
 
     /* Among init methods, we only need the finish method */
     EC_KEY_METHOD_set_init(ec_method, NULL, openvpn_extkey_ec_finish, NULL, NULL, NULL, NULL);
-#ifdef OPENSSL_IS_AWSLC
-    EC_KEY_METHOD_set_sign(ec_method, ecdsa_sign, NULL, ecdsa_sign_sig);
-#else
     EC_KEY_METHOD_set_sign(ec_method, ecdsa_sign, ecdsa_sign_setup, ecdsa_sign_sig);
-#endif
 
     ec = EC_KEY_dup(EVP_PKEY_get0_EC_KEY(pkey));
     if (!ec)
@@ -1712,7 +1468,7 @@ err:
     EC_KEY_free(ec);
     return 0;
 }
-#endif /* !defined(OPENSSL_NO_EC) */
+#endif /* OPENSSL_VERSION_NUMBER > 1.1.0 dev && !defined(OPENSSL_NO_EC) */
 #endif /* ENABLE_MANAGEMENT && !HAVE_XKEY_PROVIDER */
 
 #ifdef ENABLE_MANAGEMENT
@@ -1752,7 +1508,7 @@ tls_ctx_use_management_external_key(struct tls_root_ctx *ctx)
             goto cleanup;
         }
     }
-#if !defined(OPENSSL_NO_EC)
+#if (OPENSSL_VERSION_NUMBER > 0x10100000L) && !defined(OPENSSL_NO_EC)
 #if OPENSSL_VERSION_NUMBER < 0x30000000L
     else if (EVP_PKEY_id(pkey) == EVP_PKEY_EC)
 #else /* OPENSSL_VERSION_NUMBER < 0x30000000L */
@@ -1769,13 +1525,13 @@ tls_ctx_use_management_external_key(struct tls_root_ctx *ctx)
         crypto_msg(M_WARN, "management-external-key requires an RSA or EC certificate");
         goto cleanup;
     }
-#else  /* !defined(OPENSSL_NO_EC) */
+#else  /* OPENSSL_VERSION_NUMBER > 1.1.0 dev && !defined(OPENSSL_NO_EC) */
     else
     {
         crypto_msg(M_WARN, "management-external-key requires an RSA certificate");
         goto cleanup;
     }
-#endif /* !defined(OPENSSL_NO_EC) */
+#endif /* OPENSSL_VERSION_NUMBER > 1.1.0 dev && !defined(OPENSSL_NO_EC) */
 
 #endif /* HAVE_XKEY_PROVIDER */
 
@@ -1901,10 +1657,9 @@ tls_ctx_load_ca(struct tls_root_ctx *ctx, const char *ca_file,
             }
             sk_X509_INFO_pop_free(info_stack, X509_INFO_free);
         }
-        int cnum;
+
         if (tls_server)
         {
-            cnum = sk_X509_NAME_num(cert_names);
             SSL_CTX_set_client_CA_list(ctx->ctx, cert_names);
         }
 
@@ -1917,6 +1672,7 @@ tls_ctx_load_ca(struct tls_root_ctx *ctx, const char *ca_file,
 
         if (tls_server)
         {
+            int cnum = sk_X509_NAME_num(cert_names);
             if (cnum != added)
             {
                 crypto_msg(M_FATAL, "Cannot load CA certificate file %s (only %d "
@@ -2017,7 +1773,7 @@ open_biofp(void)
     if (!biofp)
     {
         char fn[256];
-        snprintf(fn, sizeof(fn), "bio/%d-%d.log", pid, biofp_toggle);
+        openvpn_snprintf(fn, sizeof(fn), "bio/%d-%d.log", pid, biofp_toggle);
         biofp = fopen(fn, "w");
         ASSERT(biofp);
         biofp_last_open = time(NULL);
@@ -2205,12 +1961,6 @@ key_state_ssl_init(struct key_state_ssl *ks_ssl, const struct tls_root_ctx *ssl_
 }
 
 void
-key_state_ssl_shutdown(struct key_state_ssl *ks_ssl)
-{
-    SSL_set_shutdown(ks_ssl->ssl, SSL_SENT_SHUTDOWN | SSL_RECEIVED_SHUTDOWN);
-}
-
-void
 key_state_ssl_free(struct key_state_ssl *ks_ssl)
 {
     if (ks_ssl->ssl)
@@ -2318,7 +2068,7 @@ print_pkey_details(EVP_PKEY *pkey, char *buf, size_t buflen)
 #endif
 
 #ifndef OPENSSL_NO_EC
-    char groupname[64];
+    char groupname[256];
     if (is_ec)
     {
         size_t len;
@@ -2365,8 +2115,8 @@ print_pkey_details(EVP_PKEY *pkey, char *buf, size_t buflen)
 #endif /* if OPENSSL_VERSION_NUMBER < 0x30000000L */
     }
 
-    snprintf(buf, buflen, "%d bits %s%s",
-             EVP_PKEY_bits(pkey), type, curve);
+    openvpn_snprintf(buf, buflen, "%d bits %s%s",
+                     EVP_PKEY_bits(pkey), type, curve);
 }
 
 /**
@@ -2379,19 +2129,19 @@ static void
 print_cert_details(X509 *cert, char *buf, size_t buflen)
 {
     EVP_PKEY *pkey = X509_get_pubkey(cert);
-    char pkeybuf[64] = { 0 };
+    char pkeybuf[128] = { 0 };
     print_pkey_details(pkey, pkeybuf, sizeof(pkeybuf));
 
     char sig[128] = { 0 };
     int signature_nid = X509_get_signature_nid(cert);
     if (signature_nid != 0)
     {
-        snprintf(sig, sizeof(sig), ", signature: %s",
-                 OBJ_nid2sn(signature_nid));
+        openvpn_snprintf(sig, sizeof(sig), ", signature: %s",
+                         OBJ_nid2sn(signature_nid));
     }
 
-    snprintf(buf, buflen, ", peer certificate: %s%s",
-             pkeybuf, sig);
+    openvpn_snprintf(buf, buflen, ", peer certificate: %s%s",
+                     pkeybuf, sig);
 
     EVP_PKEY_free(pkey);
 }
@@ -2409,100 +2159,11 @@ print_server_tempkey(SSL *ssl, char *buf, size_t buflen)
     char pkeybuf[128] = { 0 };
     print_pkey_details(pkey, pkeybuf, sizeof(pkeybuf));
 
-    snprintf(buf, buflen, ", peer temporary key: %s",
-             pkeybuf);
+    openvpn_snprintf(buf, buflen, ", peer temporary key: %s",
+                     pkeybuf);
 
     EVP_PKEY_free(pkey);
 }
-
-#if !defined(LIBRESSL_VERSION_NUMBER) \
-    || (defined(LIBRESSL_VERSION_NUMBER) && LIBRESSL_VERSION_NUMBER >= 0x3090000fL)
-/**
- * Translate an OpenSSL NID into a more human readable name
- * @param nid
- * @return
- */
-static const char *
-get_sigtype(int nid)
-{
-    /* Fix a few OpenSSL names to be better understandable */
-    switch (nid)
-    {
-        case EVP_PKEY_RSA:
-            /* will otherwise say rsaEncryption */
-            return "RSA";
-
-        case EVP_PKEY_DSA:
-            /* dsaEncryption otherwise */
-            return "DSA";
-
-        case EVP_PKEY_EC:
-            /* will say id-ecPublicKey */
-            return "ECDSA";
-
-        case -1:
-            return "(error getting name)";
-
-        default:
-            return OBJ_nid2sn(nid);
-    }
-}
-#endif /* ifndef LIBRESSL_VERSION_NUMBER */
-
-/**
- * Get the type of the signature that is used by the peer during the
- * TLS handshake
- */
-static void
-print_peer_signature(SSL *ssl, char *buf, size_t buflen)
-{
-    int peer_sig_type_nid = NID_undef;
-    const char *peer_sig_unknown = "unknown";
-    const char *peer_sig = peer_sig_unknown;
-    const char *peer_sig_type = "unknown type";
-
-    const char *signame = NULL;
-    SSL_get0_peer_signature_name(ssl, &signame);
-    if (signame)
-    {
-        peer_sig = signame;
-    }
-
-#if !defined(LIBRESSL_VERSION_NUMBER) \
-    || (defined(LIBRESSL_VERSION_NUMBER) && LIBRESSL_VERSION_NUMBER >= 0x3090000fL)
-    /* LibreSSL 3.7.x and 3.8.x implement this function but do not export it
-     * and fail linking with an unresolved symbol */
-    if (SSL_get_peer_signature_type_nid(ssl, &peer_sig_type_nid)
-        && peer_sig_type_nid != NID_undef)
-    {
-        peer_sig_type = get_sigtype(peer_sig_type_nid);
-    }
-#endif
-
-    if (peer_sig == peer_sig_unknown && peer_sig_type_nid == NID_undef)
-    {
-        return;
-    }
-
-    snprintf(buf, buflen, ", peer signing digest/type: %s %s",
-             peer_sig, peer_sig_type);
-}
-
-#if OPENSSL_VERSION_NUMBER >= 0x30000000L
-void
-print_tls_key_agreement_group(SSL *ssl, char *buf, size_t buflen)
-{
-    const char *groupname = SSL_get0_group_name(ssl);
-    if (!groupname)
-    {
-        snprintf(buf, buflen, ", key agreement: (error fetching group)");
-    }
-    else
-    {
-        snprintf(buf, buflen, ", key agreement: %s", groupname);
-    }
-}
-#endif
 
 /* **************************************
  *
@@ -2518,16 +2179,14 @@ print_details(struct key_state_ssl *ks_ssl, const char *prefix)
     char s1[256];
     char s2[256];
     char s3[256];
-    char s4[256];
-    char s5[256];
 
-    s1[0] = s2[0] = s3[0] = s4[0] = s5[0] = 0;
+    s1[0] = s2[0] = s3[0] = 0;
     ciph = SSL_get_current_cipher(ks_ssl->ssl);
-    snprintf(s1, sizeof(s1), "%s %s, cipher %s %s",
-             prefix,
-             SSL_get_version(ks_ssl->ssl),
-             SSL_CIPHER_get_version(ciph),
-             SSL_CIPHER_get_name(ciph));
+    openvpn_snprintf(s1, sizeof(s1), "%s %s, cipher %s %s",
+                     prefix,
+                     SSL_get_version(ks_ssl->ssl),
+                     SSL_CIPHER_get_version(ciph),
+                     SSL_CIPHER_get_name(ciph));
     X509 *cert = SSL_get_peer_certificate(ks_ssl->ssl);
 
     if (cert)
@@ -2536,12 +2195,8 @@ print_details(struct key_state_ssl *ks_ssl, const char *prefix)
         X509_free(cert);
     }
     print_server_tempkey(ks_ssl->ssl, s3, sizeof(s3));
-    print_peer_signature(ks_ssl->ssl, s4, sizeof(s4));
-#if OPENSSL_VERSION_NUMBER >= 0x30000000L
-    print_tls_key_agreement_group(ks_ssl->ssl, s5, sizeof(s5));
-#endif
 
-    msg(D_HANDSHAKE, "%s%s%s%s%s", s1, s2, s3, s4, s5);
+    msg(D_HANDSHAKE, "%s%s%s", s1, s2, s3);
 }
 
 void
@@ -2579,7 +2234,7 @@ show_available_tls_ciphers_list(const char *cipher_list,
         crypto_msg(M_FATAL, "Cannot create SSL object");
     }
 
-#if OPENSSL_VERSION_NUMBER < 0x1010000fL || defined(OPENSSL_IS_AWSLC)
+#if OPENSSL_VERSION_NUMBER < 0x1010000fL
     STACK_OF(SSL_CIPHER) *sk = SSL_get_ciphers(ssl);
 #else
     STACK_OF(SSL_CIPHER) *sk = SSL_get1_supported_ciphers(ssl);
@@ -2657,6 +2312,31 @@ show_available_curves(void)
     msg(M_WARN, "Your OpenSSL library was built without elliptic curve support. "
         "No curves available.");
 #endif /* ifndef OPENSSL_NO_EC */
+}
+
+void
+get_highest_preference_tls_cipher(char *buf, int size)
+{
+    SSL_CTX *ctx;
+    SSL *ssl;
+    const char *cipher_name;
+
+    ctx = SSL_CTX_new(SSLv23_method());
+    if (!ctx)
+    {
+        crypto_msg(M_FATAL, "Cannot create SSL_CTX object");
+    }
+    ssl = SSL_new(ctx);
+    if (!ssl)
+    {
+        crypto_msg(M_FATAL, "Cannot create SSL object");
+    }
+
+    cipher_name = SSL_get_cipher_list(ssl, 0);
+    strncpynt(buf, cipher_name, size);
+
+    SSL_free(ssl);
+    SSL_CTX_free(ctx);
 }
 
 const char *

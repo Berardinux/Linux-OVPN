@@ -5,7 +5,7 @@
  *             packet encryption, packet authentication, and
  *             packet compression.
  *
- *  Copyright (C) 2021-2025 Selva Nair <selva.nair@gmail.com>
+ *  Copyright (C) 2021-2024 Selva Nair <selva.nair@gmail.com>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by the
@@ -49,7 +49,7 @@ static const char *const props = XKEY_PROV_PROPS;
 XKEY_EXTERNAL_SIGN_fn xkey_management_sign;
 
 static void
-print_openssl_errors(void)
+print_openssl_errors()
 {
     unsigned long e;
     while ((e = ERR_get_error()))
@@ -205,7 +205,7 @@ xkey_management_sign(void *unused, unsigned char *sig, size_t *siglen,
         }
         else
         {
-            snprintf(alg_str, sizeof(alg_str), "ECDSA,hashalg=%s", alg.mdname);
+            openvpn_snprintf(alg_str, sizeof(alg_str), "ECDSA,hashalg=%s", alg.mdname);
         }
     }
     else if (!strcmp(alg.keytype, "ED448") || !strcmp(alg.keytype, "ED25519"))
@@ -229,8 +229,8 @@ xkey_management_sign(void *unused, unsigned char *sig, size_t *siglen,
         /* For undigested message, add hashalg=digest parameter */
         else
         {
-            snprintf(alg_str, sizeof(alg_str), "%s,hashalg=%s",
-                     "RSA_PKCS1_PADDING", alg.mdname);
+            openvpn_snprintf(alg_str, sizeof(alg_str), "%s,hashalg=%s",
+                             "RSA_PKCS1_PADDING", alg.mdname);
         }
     }
     else if (!strcmp(alg.padmode, "none") && (flags & MF_EXTERNAL_KEY_NOPADDING)
@@ -240,8 +240,8 @@ xkey_management_sign(void *unused, unsigned char *sig, size_t *siglen,
     }
     else if (!strcmp(alg.padmode, "pss") && (flags & MF_EXTERNAL_KEY_PSSPAD))
     {
-        snprintf(alg_str, sizeof(alg_str), "%s,hashalg=%s,saltlen=%s",
-                 "RSA_PKCS1_PSS_PADDING", alg.mdname, alg.saltlen);
+        openvpn_snprintf(alg_str, sizeof(alg_str), "%s,hashalg=%s,saltlen=%s",
+                         "RSA_PKCS1_PSS_PADDING", alg.mdname, alg.saltlen);
     }
     else
     {
@@ -292,7 +292,7 @@ xkey_management_sign(void *unused, unsigned char *sig, size_t *siglen,
  * @return              false on error, true  on success
  *
  * On return enc_len is  set to actual size of the result.
- * If enc is NULL or enc_len is not enough to store the result, it is set
+ * enc is NULL or enc_len is not enough to store the result, it is set
  * to the required size and false is returned.
  */
 bool
@@ -337,8 +337,8 @@ encode_pkcs1(unsigned char *enc, size_t *enc_len, const char *mdname,
                         MAKE_DI(sha512), MAKE_DI(sha224), MAKE_DI(sha512_224),
                         MAKE_DI(sha512_256), {0, NULL, 0}};
 
-    size_t out_len = 0;
-    bool ret = false;
+    int out_len = 0;
+    int ret = 0;
 
     int nid = OBJ_sn2nid(mdname);
     if (nid == NID_undef)
@@ -354,7 +354,7 @@ encode_pkcs1(unsigned char *enc, size_t *enc_len, const char *mdname,
 
     if (tbslen != EVP_MD_size(EVP_get_digestbyname(mdname)))
     {
-        msg(M_WARN, "Error: encode_pkcs11: invalid input length <%zu>", tbslen);
+        msg(M_WARN, "Error: encode_pkcs11: invalid input length <%d>", (int)tbslen);
         goto done;
     }
 
@@ -383,13 +383,13 @@ encode_pkcs1(unsigned char *enc, size_t *enc_len, const char *mdname,
 
     out_len = tbslen + di->sz;
 
-    if (enc && (out_len <= *enc_len))
+    if (enc && (out_len <= (int) *enc_len))
     {
         /* combine header and digest */
         memcpy(enc, di->header, di->sz);
         memcpy(enc + di->sz, tbs, tbslen);
-        dmsg(D_XKEY, "encode_pkcs1: digest length = %zu encoded length = %zu",
-             tbslen, out_len);
+        dmsg(D_XKEY, "encode_pkcs1: digest length = %d encoded length = %d",
+             (int) tbslen, (int) out_len);
         ret = true;
     }
 

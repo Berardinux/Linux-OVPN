@@ -5,7 +5,7 @@
  *             packet encryption, packet authentication, and
  *             packet compression.
  *
- *  Copyright (C) 2002-2025 OpenVPN Inc <sales@openvpn.net>
+ *  Copyright (C) 2002-2024 OpenVPN Inc <sales@openvpn.net>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License version 2
@@ -22,10 +22,9 @@
  */
 
 /**
- * @file
- * SSL control channel wrap/unwrap and decode functions.
- * This file (and its .c file) is designed to to be included in units/etc without
- * pulling in a lot of dependencies.
+ * @file SSL control channel wrap/unwrap and decode functions. This file
+ *        (and its .c file) is designed to to be included in units/etc without
+ *        pulling in a lot of dependencies
  */
 
 #ifndef SSL_PKT_H
@@ -109,6 +108,10 @@ struct tls_pre_decrypt_state {
     struct session_id server_session_id;
 };
 
+/**
+ *
+ * @param state
+ */
 void free_tls_pre_decrypt_state(struct tls_pre_decrypt_state *state);
 
 /**
@@ -133,11 +136,10 @@ void free_tls_pre_decrypt_state(struct tls_pre_decrypt_state *state);
  *
  * This function is only used in the UDP p2mp server code path
  *
- * @param[in] tas    The standalone TLS authentication setting structure for
+ * @param tas - The standalone TLS authentication setting structure for
  *     this process.
- * @param[out] state The state struct to store information in.
- * @param[in] from   The source address of the packet.
- * @param[in] buf    buffer structure containing the incoming packet.
+ * @param from - The source address of the packet.
+ * @param buf - A buffer structure containing the incoming packet.
  *
  * @return
  * @li True if the packet is valid and a new VPN tunnel should be created
@@ -180,7 +182,7 @@ calculate_session_id_hmac(struct session_id client_sid,
 /**
  * Checks if a control packet has a correct HMAC server session id
  *
- * @param state         session information
+ * @param client_sid    session id of the client
  * @param from          link_socket from the client
  * @param hmac          the hmac context to use for the calculation
  * @param handwindow    the quantisation of the current time

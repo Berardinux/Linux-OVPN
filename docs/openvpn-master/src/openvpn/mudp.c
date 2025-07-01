@@ -5,7 +5,7 @@
  *             packet encryption, packet authentication, and
  *             packet compression.
  *
- *  Copyright (C) 2002-2025 OpenVPN Inc <sales@openvpn.net>
+ *  Copyright (C) 2002-2024 OpenVPN Inc <sales@openvpn.net>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License version 2
@@ -54,9 +54,7 @@ send_hmac_reset_packet(struct multi_context *m,
 
     struct context *c = &m->top;
 
-    /* dco-win server requires prepend with sockaddr, so preserve offset */
-    ASSERT(buf_init(&c->c2.buffers->aux_buf, buf.offset));
-
+    buf_reset_len(&c->c2.buffers->aux_buf);
     buf_copy(&c->c2.buffers->aux_buf, &buf);
     m->hmac_reply = c->c2.buffers->aux_buf;
     m->hmac_reply_dest = &m->top.c2.from;
@@ -187,15 +185,12 @@ do_pre_decrypt_check(struct multi_context *m,
  */
 
 struct multi_instance *
-multi_get_create_instance_udp(struct multi_context *m, bool *floated,
-                              struct link_socket *sock)
+multi_get_create_instance_udp(struct multi_context *m, bool *floated)
 {
     struct gc_arena gc = gc_new();
-    struct mroute_addr real = {0};
+    struct mroute_addr real;
     struct multi_instance *mi = NULL;
     struct hash *hash = m->hash;
-    real.proto = sock->info.proto;
-    m->hmac_reply_ls = sock;
 
     if (mroute_extract_openvpn_sockaddr(&real, &m->top.c2.from.dest, true)
         && m->top.c2.buf.len > 0)
@@ -261,7 +256,7 @@ multi_get_create_instance_udp(struct multi_context *m, bool *floated,
                      * connect-freq but not against connect-freq-initial */
                     reflect_filter_rate_limit_decrease(m->initial_rate_limiter);
 
-                    mi = multi_create_instance(m, &real, sock);
+                    mi = multi_create_instance(m, &real);
                     if (mi)
                     {
                         hash_add_fast(hash, bucket, &mi->real, hv, mi);
@@ -322,8 +317,7 @@ multi_process_outgoing_link(struct multi_context *m, const unsigned int mpp_flag
         msg_set_prefix("Connection Attempt");
         m->top.c2.to_link = m->hmac_reply;
         m->top.c2.to_link_addr = m->hmac_reply_dest;
-        process_outgoing_link(&m->top, m->hmac_reply_ls);
-        m->hmac_reply_ls = NULL;
+        process_outgoing_link(&m->top);
         m->hmac_reply_dest = NULL;
     }
 }
@@ -331,10 +325,10 @@ multi_process_outgoing_link(struct multi_context *m, const unsigned int mpp_flag
 /*
  * Process an I/O event.
  */
-void
-multi_process_io_udp(struct multi_context *m, struct link_socket *sock)
+static void
+multi_process_io_udp(struct multi_context *m)
 {
-    const unsigned int status = m->multi_io->udp_flags;
+    const unsigned int status = m->top.c2.event_set_status;
     const unsigned int mpp_flags = m->top.c2.fast_io
                                    ? (MPP_CONDITIONAL_PRE_SELECT | MPP_CLOSE_ON_SIGNAL)
                                    : (MPP_PRE_SELECT | MPP_CLOSE_ON_SIGNAL);
@@ -386,10 +380,10 @@ multi_process_io_udp(struct multi_context *m, struct link_socket *sock)
     /* Incoming data on UDP port */
     else if (status & SOCKET_READ)
     {
-        read_incoming_link(&m->top, sock);
+        read_incoming_link(&m->top);
         if (!IS_SIG(&m->top))
         {
-            multi_process_incoming_link(m, NULL, mpp_flags, sock);
+            multi_process_incoming_link(m, NULL, mpp_flags);
         }
     }
     /* Incoming data on TUN device */
@@ -408,8 +402,7 @@ multi_process_io_udp(struct multi_context *m, struct link_socket *sock)
         multi_process_file_closed(m, mpp_flags);
     }
 #endif
-#if defined(ENABLE_DCO) \
-    && (defined(TARGET_LINUX) || defined(TARGET_FREEBSD) || defined(TARGET_WIN32))
+#if defined(ENABLE_DCO) && (defined(TARGET_LINUX) || defined(TARGET_FREEBSD))
     else if (status & DCO_READ)
     {
         if (!IS_SIG(&m->top))
@@ -422,15 +415,13 @@ multi_process_io_udp(struct multi_context *m, struct link_socket *sock)
         }
     }
 #endif
-
-    m->multi_io->udp_flags = ES_ERROR;
 }
 
 /*
  * Return the io_wait() flags appropriate for
  * a point-to-multipoint tunnel.
  */
-unsigned int
+static inline unsigned int
 p2mp_iow_flags(const struct multi_context *m)
 {
     unsigned int flags = IOW_WAIT_SIGNAL;
@@ -457,5 +448,91 @@ p2mp_iow_flags(const struct multi_context *m)
     {
         flags |= IOW_READ;
     }
+#ifdef _WIN32
+    if (tuntap_ring_empty(m->top.c1.tuntap))
+    {
+        flags &= ~IOW_READ_TUN;
+    }
+#endif
     return flags;
+}
+
+
+void
+tunnel_server_udp(struct context *top)
+{
+    struct multi_context multi;
+
+    top->mode = CM_TOP;
+    context_clear_2(top);
+
+    /* initialize top-tunnel instance */
+    init_instance_handle_signals(top, top->es, CC_HARD_USR1_TO_HUP);
+    if (IS_SIG(top))
+    {
+        return;
+    }
+
+    /* initialize global multi_context object */
+    multi_init(&multi, top, false);
+
+    /* initialize our cloned top object */
+    multi_top_init(&multi, top);
+
+    /* initialize management interface */
+    init_management_callback_multi(&multi);
+
+    /* finished with initialization */
+    initialization_sequence_completed(top, ISC_SERVER); /* --mode server --proto udp */
+
+#ifdef ENABLE_ASYNC_PUSH
+    multi.top.c2.inotify_fd = inotify_init();
+    if (multi.top.c2.inotify_fd < 0)
+    {
+        msg(D_MULTI_ERRORS | M_ERRNO, "MULTI: inotify_init error");
+    }
+#endif
+
+    /* per-packet event loop */
+    while (true)
+    {
+        perf_push(PERF_EVENT_LOOP);
+
+        /* set up and do the io_wait() */
+        multi_get_timeout(&multi, &multi.top.c2.timeval);
+        io_wait(&multi.top, p2mp_iow_flags(&multi));
+        MULTI_CHECK_SIG(&multi);
+
+        /* check on status of coarse timers */
+        multi_process_per_second_timers(&multi);
+
+        /* timeout? */
+        if (multi.top.c2.event_set_status == ES_TIMEOUT)
+        {
+            multi_process_timeout(&multi, MPP_PRE_SELECT|MPP_CLOSE_ON_SIGNAL);
+        }
+        else
+        {
+            /* process I/O */
+            multi_process_io_udp(&multi);
+            MULTI_CHECK_SIG(&multi);
+        }
+
+        perf_pop();
+    }
+
+#ifdef ENABLE_ASYNC_PUSH
+    close(top->c2.inotify_fd);
+#endif
+
+    /* shut down management interface */
+    uninit_management_callback();
+
+    /* save ifconfig-pool */
+    multi_ifconfig_pool_persist(&multi, true);
+
+    /* tear down tunnel instance (unless --persist-tun) */
+    multi_uninit(&multi);
+    multi_top_free(&multi);
+    close_instance(top);
 }

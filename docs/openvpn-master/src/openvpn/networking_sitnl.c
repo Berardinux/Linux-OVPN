@@ -1,7 +1,7 @@
 /*
  *  Simplified Interface To NetLink
  *
- *  Copyright (C) 2016-2025 Antonio Quartulli <a@unstable.cc>
+ *  Copyright (C) 2016-2024 Antonio Quartulli <a@unstable.cc>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License version 2
@@ -52,33 +52,20 @@
         }                                                           \
     }
 
+#define NLMSG_TAIL(nmsg) \
+    ((struct rtattr *)(((uint8_t *)(nmsg)) + NLMSG_ALIGN((nmsg)->nlmsg_len)))
+
 #define SITNL_NEST(_msg, _max_size, _attr)              \
     ({                                                  \
-        struct rtattr *_nest = sitnl_nlmsg_tail(_msg);  \
+        struct rtattr *_nest = NLMSG_TAIL(_msg);        \
         SITNL_ADDATTR(_msg, _max_size, _attr, NULL, 0); \
         _nest;                                          \
     })
 
-#define SITNL_NEST_END(_msg, _nest)                                     \
-    {                                                                   \
-        _nest->rta_len = (void *)sitnl_nlmsg_tail(_msg) - (void *)_nest; \
+#define SITNL_NEST_END(_msg, _nest)                                 \
+    {                                                               \
+        _nest->rta_len = (void *)NLMSG_TAIL(_msg) - (void *)_nest;  \
     }
-
-/* This function was originally implemented as a macro, but compiling with
- * gcc and -O3 was getting confused about the math and thus raising
- * security warnings on subsequent memcpy() calls.
- *
- * Converting the macro to a function was not enough, because gcc was still
- * inlining it and falling in the same math trap.
- *
- * The only way out to avoid any warning/error is to force the function to
- * not be inline'd.
- */
-static __attribute__ ((noinline)) void *
-sitnl_nlmsg_tail(const struct nlmsghdr *nlh)
-{
-    return (unsigned char *)nlh + NLMSG_ALIGN(nlh->nlmsg_len);
-}
 
 /**
  * Generic address data structure used to pass addresses and prefixes as
@@ -143,7 +130,7 @@ sitnl_addattr(struct nlmsghdr *n, int maxlen, int type, const void *data,
         return -EMSGSIZE;
     }
 
-    rta = sitnl_nlmsg_tail(n);
+    rta = NLMSG_TAIL(n);
     rta->rta_type = type;
     rta->rta_len = len;
 
@@ -619,7 +606,8 @@ net_route_v6_best_gw(openvpn_net_ctx_t *ctx, const struct in6_addr *dst,
 
 }
 
-/* used by iproute2 implementation too */
+#ifdef ENABLE_SITNL
+
 int
 net_route_v4_best_gw(openvpn_net_ctx_t *ctx, const in_addr_t *dst,
                      in_addr_t *best_gw, char *best_iface)
@@ -650,8 +638,6 @@ net_route_v4_best_gw(openvpn_net_ctx_t *ctx, const in_addr_t *dst,
 
     return ret;
 }
-
-#ifdef ENABLE_SITNL
 
 int
 net_iface_up(openvpn_net_ctx_t *ctx, const char *iface, bool up)
@@ -1354,7 +1340,7 @@ net_iface_new(openvpn_net_ctx_t *ctx, const char *iface, const char *type,
     struct rtattr *linkinfo = SITNL_NEST(&req.n, sizeof(req), IFLA_LINKINFO);
     SITNL_ADDATTR(&req.n, sizeof(req), IFLA_INFO_KIND, type, strlen(type) + 1);
 #if defined(ENABLE_DCO)
-    if (arg && (strcmp(type, OVPN_FAMILY_NAME) == 0))
+    if (arg && (strcmp(type, "ovpn-dco") == 0))
     {
         dco_context_t *dco = arg;
         struct rtattr *data = SITNL_NEST(&req.n, sizeof(req), IFLA_INFO_DATA);

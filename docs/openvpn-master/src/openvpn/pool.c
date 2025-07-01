@@ -5,7 +5,7 @@
  *             packet encryption, packet authentication, and
  *             packet compression.
  *
- *  Copyright (C) 2002-2025 OpenVPN Inc <sales@openvpn.net>
+ *  Copyright (C) 2002-2024 OpenVPN Inc <sales@openvpn.net>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License version 2
@@ -766,7 +766,7 @@ ifconfig_pool_test(in_addr_t start, in_addr_t end)
         ifconfig_pool_handle h;
         in_addr_t local, remote;
         char buf[256];
-        snprintf(buf, sizeof(buf), "common-name-%d", i);
+        openvpn_snprintf(buf, sizeof(buf), "common-name-%d", i);
 #ifdef DUP_CN
         cn = NULL;
 #else

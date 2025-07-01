@@ -22,8 +22,8 @@
  */
 
 /**
- * @file
- * mbedtls compatibility stub.
+ * @file mbedtls compatibility stub
+ *
  * This file provide compatibility stubs for the mbedtls libraries
  * prior to version 3. This version made most fields in structs private
  * and requires accessor functions to be used. For earlier versions, we
@@ -40,7 +40,6 @@
 #include <mbedtls/cipher.h>
 #include <mbedtls/ctr_drbg.h>
 #include <mbedtls/dhm.h>
-#include <mbedtls/ecp.h>
 #include <mbedtls/md.h>
 #include <mbedtls/pem.h>
 #include <mbedtls/pk.h>
@@ -50,12 +49,6 @@
 
 #if HAVE_MBEDTLS_PSA_CRYPTO_H
     #include <psa/crypto.h>
-#endif
-
-#if MBEDTLS_VERSION_NUMBER >= 0x03000000
-typedef uint16_t mbedtls_compat_group_id;
-#else
-typedef mbedtls_ecp_group_id mbedtls_compat_group_id;
 #endif
 
 static inline void
@@ -71,16 +64,6 @@ mbedtls_compat_psa_crypto_init(void)
 #endif /* HAVE_MBEDTLS_PSA_CRYPTO_H && defined(MBEDTLS_PSA_CRYPTO_C) */
 }
 
-static inline mbedtls_compat_group_id
-mbedtls_compat_get_group_id(const mbedtls_ecp_curve_info *curve_info)
-{
-#if MBEDTLS_VERSION_NUMBER >= 0x03000000
-    return curve_info->tls_id;
-#else
-    return curve_info->grp_id;
-#endif
-}
-
 /*
  * In older versions of mbedtls, mbedtls_ctr_drbg_update() did not return an
  * error code, and it was deprecated in favor of mbedtls_ctr_drbg_update_ret()
@@ -94,13 +77,13 @@ mbedtls_compat_ctr_drbg_update(mbedtls_ctr_drbg_context *ctx,
                                const unsigned char *additional,
                                size_t add_len)
 {
-#if MBEDTLS_VERSION_NUMBER > 0x03000000
-    return mbedtls_ctr_drbg_update(ctx, additional, add_len);
-#elif HAVE_MBEDTLS_CTR_DRBG_UPDATE_RET
+#if HAVE_MBEDTLS_CTR_DRBG_UPDATE_RET
     return mbedtls_ctr_drbg_update_ret(ctx, additional, add_len);
-#else
+#elif MBEDTLS_VERSION_NUMBER < 0x03020100
     mbedtls_ctr_drbg_update(ctx, additional, add_len);
     return 0;
+#else
+    return mbedtls_ctr_drbg_update(ctx, additional, add_len);
 #endif /* HAVE_MBEDTLS_CTR_DRBG_UPDATE_RET */
 }
 
@@ -141,34 +124,6 @@ mbedtls_compat_pk_parse_keyfile(mbedtls_pk_context *ctx,
 }
 
 #if MBEDTLS_VERSION_NUMBER < 0x03020100
-typedef enum {
-    MBEDTLS_SSL_VERSION_UNKNOWN, /*!< Context not in use or version not yet negotiated. */
-    MBEDTLS_SSL_VERSION_TLS1_2 = 0x0303, /*!< (D)TLS 1.2 */
-    MBEDTLS_SSL_VERSION_TLS1_3 = 0x0304, /*!< (D)TLS 1.3 */
-} mbedtls_ssl_protocol_version;
-
-static inline void
-mbedtls_ssl_conf_min_tls_version(mbedtls_ssl_config *conf, mbedtls_ssl_protocol_version tls_version)
-{
-    int major = (tls_version >> 8) & 0xff;
-    int minor = tls_version & 0xff;
-    mbedtls_ssl_conf_min_version(conf, major, minor);
-}
-
-static inline void
-mbedtls_ssl_conf_max_tls_version(mbedtls_ssl_config *conf, mbedtls_ssl_protocol_version tls_version)
-{
-    int major = (tls_version >> 8) & 0xff;
-    int minor = tls_version & 0xff;
-    mbedtls_ssl_conf_max_version(conf, major, minor);
-}
-
-static inline void
-mbedtls_ssl_conf_groups(mbedtls_ssl_config *conf, mbedtls_compat_group_id *groups)
-{
-    mbedtls_ssl_conf_curves(conf, groups);
-}
-
 static inline size_t
 mbedtls_cipher_info_get_block_size(const mbedtls_cipher_info_t *cipher)
 {

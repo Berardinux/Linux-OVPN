@@ -5,7 +5,7 @@
  *             packet encryption, packet authentication, and
  *             packet compression.
  *
- *  Copyright (C) 2002-2025 OpenVPN Inc <sales@openvpn.net>
+ *  Copyright (C) 2002-2024 OpenVPN Inc <sales@openvpn.net>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License version 2
@@ -284,24 +284,6 @@ man_prompt(struct management *man)
 #endif
 }
 
-
-/**
- * Small function to report the success or failure of a command to
- * the management interface
- */
-static void
-report_command_status(const bool status, const char *command)
-{
-    if (status)
-    {
-        msg(M_CLIENT, "SUCCESS: %s command succeeded", command);
-    }
-    else
-    {
-        msg(M_CLIENT, "ERROR: %s command failed", command);
-    }
-}
-
 static void
 man_delete_unix_socket(struct management *man)
 {
@@ -515,8 +497,8 @@ man_bytecount_output_client(struct management *man,
     char out[32];
 
     /* do in a roundabout way to work around possible mingw or mingw-glibc bug */
-    snprintf(in, sizeof(in), counter_format, man->persist.bytes_in + dco_read_bytes);
-    snprintf(out, sizeof(out), counter_format, man->persist.bytes_out + dco_write_bytes);
+    openvpn_snprintf(in, sizeof(in), counter_format, man->persist.bytes_in + dco_read_bytes);
+    openvpn_snprintf(out, sizeof(out), counter_format, man->persist.bytes_out + dco_write_bytes);
     msg(M_CLIENT, ">BYTECOUNT:%s,%s", in, out);
 }
 
@@ -528,8 +510,8 @@ man_bytecount_output_server(const counter_type *bytes_in_total,
     char in[32];
     char out[32];
     /* do in a roundabout way to work around possible mingw or mingw-glibc bug */
-    snprintf(in, sizeof(in), counter_format, *bytes_in_total);
-    snprintf(out, sizeof(out), counter_format, *bytes_out_total);
+    openvpn_snprintf(in, sizeof(in), counter_format, *bytes_in_total);
+    openvpn_snprintf(out, sizeof(out), counter_format, *bytes_out_total);
     msg(M_CLIENT, ">BYTECOUNT_CLI:%lu,%s,%s", mdac->cid, in, out);
     mdac->bytecount_last_update = now;
 }
@@ -544,52 +526,45 @@ man_kill(struct management *man, const char *victim)
         struct buffer buf;
         char p1[128];
         char p2[128];
-        char p3[128];
         int n_killed;
 
         buf_set_read(&buf, (uint8_t *) victim, strlen(victim) + 1);
         buf_parse(&buf, ':', p1, sizeof(p1));
         buf_parse(&buf, ':', p2, sizeof(p2));
-        buf_parse(&buf, ':', p3, sizeof(p3));
 
-        if (strlen(p1) && strlen(p2) && strlen(p3))
+        if (strlen(p1) && strlen(p2))
         {
             /* IP:port specified */
             bool status;
-            const in_addr_t addr = getaddr(GETADDR_HOST_ORDER|GETADDR_MSG_VIRT_OUT, p2, 0, &status, NULL);
+            const in_addr_t addr = getaddr(GETADDR_HOST_ORDER|GETADDR_MSG_VIRT_OUT, p1, 0, &status, NULL);
             if (status)
             {
-                const int port = atoi(p3);
-                const int proto = (streq(p1, "tcp")) ? PROTO_TCP_SERVER :
-                                  (streq(p1, "udp")) ? PROTO_UDP : PROTO_NONE;
-
-                if ((port > 0 && port < 65536) && (proto != PROTO_NONE))
+                const int port = atoi(p2);
+                if (port > 0 && port < 65536)
                 {
-                    n_killed = (*man->persist.callback.kill_by_addr)(man->persist.callback.arg, addr, port, proto);
+                    n_killed = (*man->persist.callback.kill_by_addr)(man->persist.callback.arg, addr, port);
                     if (n_killed > 0)
                     {
-                        msg(M_CLIENT, "SUCCESS: %d client(s) at address %s:%s:%d killed",
+                        msg(M_CLIENT, "SUCCESS: %d client(s) at address %s:%d killed",
                             n_killed,
-                            proto2ascii(proto, AF_UNSPEC, false),
                             print_in_addr_t(addr, 0, &gc),
                             port);
                     }
                     else
                     {
-                        msg(M_CLIENT, "ERROR: client at address %s:%s:%d not found",
-                            proto2ascii(proto, AF_UNSPEC, false),
+                        msg(M_CLIENT, "ERROR: client at address %s:%d not found",
                             print_in_addr_t(addr, 0, &gc),
                             port);
                     }
                 }
                 else
                 {
-                    msg(M_CLIENT, "ERROR: port number or protocol out of range: %s %s", p3, p1);
+                    msg(M_CLIENT, "ERROR: port number is out of range: %s", p2);
                 }
             }
             else
             {
-                msg(M_CLIENT, "ERROR: error parsing IP address: %s", p2);
+                msg(M_CLIENT, "ERROR: error parsing IP address: %s", p1);
             }
         }
         else if (strlen(p1))
@@ -999,7 +974,14 @@ in_extra_dispatch(struct management *man)
                                         NULL,
                                         man->connection.in_extra);
                 man->connection.in_extra = NULL;
-                report_command_status(status, "client-auth");
+                if (status)
+                {
+                    msg(M_CLIENT, "SUCCESS: client-auth command succeeded");
+                }
+                else
+                {
+                    msg(M_CLIENT, "ERROR: client-auth command failed");
+                }
             }
             else
             {
@@ -1059,9 +1041,8 @@ parse_uint(const char *str, const char *what, unsigned int *uint)
  * @param man           The management interface struct
  * @param cid_str       The CID in string form
  * @param kid_str       The key ID in string form
- * @param extra         The string to be sent to the client containing
+ * @param extra         The string to be send to the client containing
  *                      the information of the additional steps
- * @param timeout_str   The timeout value in string form
  */
 static void
 man_client_pending_auth(struct management *man, const char *cid_str,
@@ -1248,7 +1229,6 @@ man_load_stats(struct management *man)
  * Checks if the correct number of arguments to a management command are present
  * and otherwise prints an error and returns false.
  *
- * @param man       The management interface struct
  * @param p         pointer to the parameter array
  * @param n         number of arguments required
  * @param flags     if MN_AT_LEAST require at least n parameters and not exactly n
@@ -1280,7 +1260,14 @@ man_proxy(struct management *man, const char **p)
     if (man->persist.callback.proxy_cmd)
     {
         const bool status = (*man->persist.callback.proxy_cmd)(man->persist.callback.arg, p);
-        report_command_status(status, "proxy");
+        if (status)
+        {
+            msg(M_CLIENT, "SUCCESS: proxy command succeeded");
+        }
+        else
+        {
+            msg(M_CLIENT, "ERROR: proxy command failed");
+        }
     }
     else
     {
@@ -1294,7 +1281,14 @@ man_remote(struct management *man, const char **p)
     if (man->persist.callback.remote_cmd)
     {
         const bool status = (*man->persist.callback.remote_cmd)(man->persist.callback.arg, p);
-        report_command_status(status, "remote");
+        if (status)
+        {
+            msg(M_CLIENT, "SUCCESS: remote command succeeded");
+        }
+        else
+        {
+            msg(M_CLIENT, "ERROR: remote command failed");
+        }
     }
     else
     {
@@ -1672,7 +1666,7 @@ man_dispatch_command(struct management *man, struct status_output *so, const cha
 #endif
     else
     {
-        msg(M_CLIENT, "ERROR: unknown command [%s], enter 'help' for more options", p[0]);
+        msg(M_CLIENT, "ERROR: unknown command, enter 'help' for more options");
     }
 
 done:
@@ -1831,9 +1825,7 @@ man_accept(struct management *man)
     }
     else
 #endif
-    {
-        man->connection.sd_cli = socket_do_accept(man->connection.sd_top, &act, false);
-    }
+    man->connection.sd_cli = socket_do_accept(man->connection.sd_top, &act, false);
 
     if (socket_defined(man->connection.sd_cli))
     {
@@ -1982,11 +1974,9 @@ man_connect(struct management *man)
         }
         else
 #endif
-        {
-            msg(D_LINK_ERRORS | M_ERRNO,
-                "MANAGEMENT: connect to %s failed",
-                print_sockaddr(man->settings.local->ai_addr, &gc));
-        }
+        msg(D_LINK_ERRORS | M_ERRNO,
+            "MANAGEMENT: connect to %s failed",
+            print_sockaddr(man->settings.local->ai_addr, &gc));
         throw_signal_soft(SIGTERM, "management-connect-failed");
         goto done;
     }
@@ -3068,11 +3058,9 @@ management_post_tunnel_open(struct management *man, const in_addr_t tun_local_ip
         /* listen on our local TUN/TAP IP address */
         struct in_addr ia;
         int ret;
-        char buf[INET_ADDRSTRLEN];
 
         ia.s_addr = htonl(tun_local_ip);
-        inet_ntop(AF_INET, &ia, buf, sizeof(buf));
-        ret = openvpn_getaddrinfo(GETADDR_PASSIVE, buf, NULL, 0, NULL,
+        ret = openvpn_getaddrinfo(GETADDR_PASSIVE, inet_ntoa(ia), NULL, 0, NULL,
                                   AF_INET, &man->settings.local);
         ASSERT(ret==0);
         man_connection_init(man);
@@ -3448,8 +3436,7 @@ management_event_loop_n_seconds(struct management *man, int sec)
         const bool standalone_disabled_save = man->persist.standalone_disabled;
         time_t expire = 0;
 
-        /* This is so M_CLIENT messages will be correctly passed through msg() */
-        man->persist.standalone_disabled = false;
+        man->persist.standalone_disabled = false; /* This is so M_CLIENT messages will be correctly passed through msg() */
 
         /* set expire time */
         update_time();
@@ -3512,8 +3499,7 @@ management_query_user_pass(struct management *man,
         unsigned int up_query_mode = 0;
         const char *sc = NULL;
         ret = true;
-        /* This is so M_CLIENT messages will be correctly passed through msg() */
-        man->persist.standalone_disabled = false;
+        man->persist.standalone_disabled = false; /* This is so M_CLIENT messages will be correctly passed through msg() */
         man->persist.special_state_msg = NULL;
 
         CLEAR(man->connection.up_query);
@@ -3559,8 +3545,7 @@ management_query_user_pass(struct management *man,
         if (sc)
         {
             buf_printf(&alert_msg, " SC:%d,%s",
-                       BOOL_CAST(flags & GET_USER_PASS_STATIC_CHALLENGE_ECHO)
-                       |(BOOL_CAST(flags & GET_USER_PASS_STATIC_CHALLENGE_CONCAT) << 1),
+                       BOOL_CAST(flags & GET_USER_PASS_STATIC_CHALLENGE_ECHO),
                        sc);
         }
 
@@ -3637,8 +3622,7 @@ management_query_multiline(struct management *man,
 
     if (man_standalone_ok(man))
     {
-        /* This is so M_CLIENT messages will be correctly passed through msg() */
-        man->persist.standalone_disabled = false;
+        man->persist.standalone_disabled = false; /* This is so M_CLIENT messages will be correctly passed through msg() */
         man->persist.special_state_msg = NULL;
 
         *state = EKS_SOLICIT;
@@ -3810,6 +3794,16 @@ bool
 management_would_hold(struct management *man)
 {
     return (man->settings.flags & MF_HOLD) && !man->persist.hold_release && man_standalone_ok(man);
+}
+
+/*
+ * Return true if (from the management interface's perspective) OpenVPN should
+ * daemonize.
+ */
+bool
+management_should_daemonize(struct management *man)
+{
+    return management_would_hold(man) || (man->settings.flags & MF_QUERY_PASSWORDS);
 }
 
 /*
@@ -4150,13 +4144,8 @@ management_check_bytecount(struct context *c, struct management *man, struct tim
         counter_type dco_read_bytes = 0;
         counter_type dco_write_bytes = 0;
 
-        if (dco_enabled(&c->options))
+        if (dco_enabled(&c->options) && (dco_get_peer_stats(c) == 0))
         {
-            if (dco_get_peer_stats(c, true) < 0)
-            {
-                return;
-            }
-
             dco_read_bytes = c->c2.dco_read_bytes;
             dco_write_bytes = c->c2.dco_write_bytes;
         }
@@ -4175,8 +4164,7 @@ management_check_bytecount(struct context *c, struct management *man, struct tim
 void
 man_persist_client_stats(struct management *man, struct context *c)
 {
-    /* no need to raise SIGUSR1 since we are already closing the instance */
-    if (dco_enabled(&c->options) && (dco_get_peer_stats(c, false) == 0))
+    if (dco_enabled(&c->options) && (dco_get_peer_stats(c) == 0))
     {
         management_bytes_client(man, c->c2.dco_read_bytes, c->c2.dco_write_bytes);
     }

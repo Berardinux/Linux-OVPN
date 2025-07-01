@@ -5,7 +5,7 @@
  *             packet encryption, packet authentication, and
  *             packet compression.
  *
- *  Copyright (C) 2021-2025 Selva Nair <selva.nair@gmail.com>
+ *  Copyright (C) 2021-2024 Selva Nair <selva.nair@gmail.com>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by the
@@ -39,8 +39,6 @@
 #include <openssl/pem.h>
 #include <openssl/core_names.h>
 #include <openssl/evp.h>
-
-#include "test_common.h"
 
 struct management *management; /* global */
 static int mgmt_callback_called;
@@ -119,9 +117,8 @@ load_pubkey(const char *pem)
 }
 
 static void
-init_test(void)
+init_test()
 {
-    openvpn_unit_test_setup();
     prov[0] = OSSL_PROVIDER_load(NULL, "default");
     OSSL_PROVIDER_add_builtin(NULL, prov_name, xkey_provider_init);
     prov[1] = OSSL_PROVIDER_load(NULL, prov_name);
@@ -135,7 +132,7 @@ init_test(void)
 }
 
 static void
-uninit_test(void)
+uninit_test()
 {
     for (size_t i = 0; i < _countof(prov); i++)
     {
@@ -368,7 +365,7 @@ xkey_sign(void *handle, unsigned char *sig, size_t *siglen,
     }
 
     /* return a predefined string as sig */
-    memcpy(sig, good_sig, min_size(sizeof(good_sig), *siglen));
+    memcpy(sig, good_sig, min_int(sizeof(good_sig), *siglen));
 
     return 1;
 }

@@ -5,7 +5,7 @@
  *             packet encryption, packet authentication, and
  *             packet compression.
  *
- *  Copyright (C) 2002-2025 OpenVPN Inc <sales@openvpn.net>
+ *  Copyright (C) 2002-2024 OpenVPN Inc <sales@openvpn.net>
  *  Copyright (C) 2010-2021 Fox Crypto B.V. <openvpn@foxcrypto.com>
  *
  *  This program is free software; you can redistribute it and/or modify
@@ -23,8 +23,7 @@
  */
 
 /**
- * @file
- * PKCS #11 OpenSSL backend
+ * @file PKCS #11 OpenSSL backend
  */
 
 #ifdef HAVE_CONFIG_H
@@ -167,7 +166,7 @@ xkey_pkcs11h_sign(void *handle, unsigned char *sig,
     CK_RSA_PKCS_PSS_PARAMS pss_params = {0};
 
     unsigned char buf[EVP_MAX_MD_SIZE];
-    size_t buflen = 0;
+    size_t buflen;
     size_t siglen_max = *siglen;
 
     unsigned char enc[EVP_MAX_MD_SIZE + 32]; /* 32 bytes enough for DigestInfo header */

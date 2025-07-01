@@ -5,7 +5,7 @@
  *             packet encryption, packet authentication, and
  *             packet compression.
  *
- *  Copyright (C) 2002-2025 OpenVPN Inc <sales@openvpn.net>
+ *  Copyright (C) 2002-2024 OpenVPN Inc <sales@openvpn.net>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License version 2
@@ -94,21 +94,14 @@ struct options_pre_connect
 #error "At least one of OpenSSL or mbed TLS needs to be defined."
 #endif
 
-struct local_entry
-{
-    const char *local;
-    const char *port;
-    int proto;
-};
-
 struct connection_entry
 {
-    struct local_list *local_list;
     int proto;
     sa_family_t af;
     const char *local_port;
     bool local_port_defined;
     const char *remote_port;
+    const char *local;
     const char *remote;
     bool remote_float;
     bool bind_defined;
@@ -185,13 +178,6 @@ struct remote_entry
 };
 
 #define CONNECTION_LIST_SIZE 64
-
-struct local_list
-{
-    int capacity;
-    int len;
-    struct local_entry **array;
-};
 
 struct connection_list
 {
@@ -358,6 +344,7 @@ struct options
     bool persist_tun;           /* Don't close/reopen TUN/TAP dev on SIGUSR1 or PING_RESTART */
     bool persist_local_ip;      /* Don't re-resolve local address on SIGUSR1 or PING_RESTART */
     bool persist_remote_ip;     /* Don't re-resolve remote address on SIGUSR1 or PING_RESTART */
+    bool persist_key;           /* Don't re-read key files on SIGUSR1 or PING_RESTART */
 
 #if PASSTOS_CAPABILITY
     bool passtos;
@@ -368,9 +355,6 @@ struct options
     const char *ip_remote_hint;
 
     struct tuntap_options tuntap_options;
-    /* DCO is disabled and should not be used as backend driver for the
-     * tun/tap device */
-    bool disable_dco;
 
     /* Misc parms */
     const char *username;
@@ -427,7 +411,6 @@ struct options
     const char *route_predown_script;
     const char *route_default_gateway;
     const char *route_ipv6_default_gateway;
-    int route_default_table_id;
     int route_default_metric;
     bool route_noexec;
     int route_delay;
@@ -507,7 +490,6 @@ struct options
     const char *client_config_dir;
     bool ccd_exclusive;
     bool disable;
-    const char *override_username;
     int n_bcast_buf;
     int tcp_queue_limit;
     struct iroute *iroutes;
@@ -570,17 +552,15 @@ struct options
     /* Cipher parms */
     const char *shared_secret_file;
     bool shared_secret_file_inline;
-    bool allow_deprecated_insecure_static_crypto;
     int key_direction;
     const char *ciphername;
     bool enable_ncp_fallback;      /**< If defined fall back to
                                    * ciphername if NCP fails */
-    /** The original ncp_ciphers specified by the user in the configuration*/
-    const char *ncp_ciphers_conf;
     const char *ncp_ciphers;
     const char *authname;
     const char *engine;
     struct provider_list providers;
+    bool replay;
     bool mute_replay_warnings;
     int replay_window;
     int replay_time;
@@ -644,8 +624,8 @@ struct options
     int tls_timeout;
 
     /* Data channel key renegotiation parameters */
-    int64_t renegotiate_bytes;
-    int64_t renegotiate_packets;
+    int renegotiate_bytes;
+    int renegotiate_packets;
     int renegotiate_seconds;
     int renegotiate_seconds_min;
 
@@ -697,15 +677,17 @@ struct options
     bool show_net_up;
     int route_method;
     bool block_outside_dns;
-    enum tun_driver_type windows_driver;
+    enum windows_driver_type windows_driver;
 #endif
 
     bool use_peer_id;
     uint32_t peer_id;
 
+#ifdef HAVE_EXPORT_KEYING_MATERIAL
     /* Keying Material Exporters [RFC 5705] */
     const char *keying_material_exporter_label;
     int keying_material_exporter_length;
+#endif
     /* force using TLS key material export for data channel key generation */
     bool force_key_material_export;
 
@@ -759,7 +741,6 @@ struct options
 #define OPT_P_PEER_ID         (1<<28)
 #define OPT_P_INLINE          (1<<29)
 #define OPT_P_PUSH_MTU        (1<<30)
-#define OPT_P_ROUTE_TABLE     (1<<31)
 
 #define OPT_P_DEFAULT   (~(OPT_P_INSTANCE|OPT_P_PULL_MODE))
 
@@ -920,8 +901,6 @@ void options_string_import(struct options *options,
 
 bool key_is_external(const struct options *options);
 
-bool has_udp_in_local_list(const struct options *options);
-
 /**
  * Returns whether the current configuration has dco enabled.
  */
@@ -929,7 +908,7 @@ static inline bool
 dco_enabled(const struct options *o)
 {
 #ifdef ENABLE_DCO
-    return !o->disable_dco;
+    return !o->tuntap_options.disable_dco;
 #else
     return false;
 #endif /* ENABLE_DCO */

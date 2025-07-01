@@ -5,7 +5,7 @@
  *             packet encryption, packet authentication, and
  *             packet compression.
  *
- *  Copyright (C) 2002-2025 OpenVPN Inc <sales@openvpn.net>
+ *  Copyright (C) 2002-2024 OpenVPN Inc <sales@openvpn.net>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License version 2
@@ -50,7 +50,8 @@ void server_pushed_signal(struct context *c, const struct buffer *buffer, const 
 
 void receive_exit_message(struct context *c);
 
-void server_pushed_info(const struct buffer *buffer, const int adv);
+void server_pushed_info(struct context *c, const struct buffer *buffer,
+                        const int adv);
 
 void receive_cr_response(struct context *c, const struct buffer *buffer);
 

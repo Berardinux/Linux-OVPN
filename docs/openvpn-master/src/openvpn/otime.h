@@ -5,7 +5,7 @@
  *             packet encryption, packet authentication, and
  *             packet compression.
  *
- *  Copyright (C) 2002-2025 OpenVPN Inc <sales@openvpn.net>
+ *  Copyright (C) 2002-2024 OpenVPN Inc <sales@openvpn.net>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License version 2
@@ -43,7 +43,7 @@ void frequency_limit_free(struct frequency_limit *f);
 bool frequency_limit_event_allowed(struct frequency_limit *f);
 
 /* format a time_t as ascii, or use current time if 0 */
-const char *time_string(time_t t, long usec, bool show_usec, struct gc_arena *gc);
+const char *time_string(time_t t, int usec, bool show_usec, struct gc_arena *gc);
 
 /* struct timeval functions */
 
@@ -246,8 +246,7 @@ tv_delta(struct timeval *dest, const struct timeval *t1, const struct timeval *t
 static inline bool
 tv_within_sigma(const struct timeval *t1, const struct timeval *t2, unsigned int sigma)
 {
-    /* sigma should be less than 10 minutes */
-    const int delta = tv_subtract(t1, t2, TV_WITHIN_SIGMA_MAX_SEC);
+    const int delta = tv_subtract(t1, t2, TV_WITHIN_SIGMA_MAX_SEC); /* sigma should be less than 10 minutes */
     return -(int)sigma <= delta && delta <= (int)sigma;
 }
 

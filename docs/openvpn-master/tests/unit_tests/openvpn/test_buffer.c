@@ -32,7 +32,6 @@
 
 #include "buffer.h"
 #include "buffer.c"
-#include "test_common.h"
 
 static void
 test_buffer_strprefix(void **state)
@@ -49,70 +48,11 @@ test_buffer_strprefix(void **state)
 #define teststr1 "one"
 #define teststr2 "two"
 #define teststr3 "three"
+#define teststr4 "four"
 
 #define assert_buf_equals_str(buf, str) \
     assert_int_equal(BLEN(buf), strlen(str)); \
     assert_memory_equal(BPTR(buf), str, BLEN(buf));
-
-static void
-test_buffer_printf_catrunc(void **state)
-{
-    struct gc_arena gc = gc_new();
-    struct buffer buf = alloc_buf_gc(16, &gc);
-
-    buf_printf(&buf, "%d", 123);
-    buf_printf(&buf, "%s", "some text, too long to fit");
-    assert_buf_equals_str(&buf, "123some text, t");
-
-    buf_catrunc(&buf, "...");
-    assert_buf_equals_str(&buf, "123some text...");
-
-    buf_catrunc(&buf, "some other text, much too long to fit");
-    assert_buf_equals_str(&buf, "123some text...");
-
-    buf_catrunc(&buf, "something else"); /* exactly right */
-    assert_buf_equals_str(&buf, "1something else");
-
-    buf_catrunc(&buf, "something other"); /* 1 byte too long */
-    assert_buf_equals_str(&buf, "1something else");
-
-    gc_free(&gc);
-}
-
-static void
-test_buffer_format_hex_ex(void **state)
-{
-    const int input_size = 10;
-    const uint8_t input[] = {
-        0x01, 0x00, 0xff, 0x10, 0xff, 0x00, 0xf0, 0x0f, 0x09, 0x0a
-    };
-    char *output;
-    struct gc_arena gc = gc_new();
-
-    int maxoutput = 0;
-    unsigned int blocksize = 5;
-    char *separator = " ";
-    output = format_hex_ex(input, input_size, maxoutput, blocksize, separator, &gc);
-    assert_string_equal(output, "0100ff10ff 00f00f090a");
-
-    maxoutput = 14;
-    output = format_hex_ex(input, input_size, maxoutput, blocksize, separator, &gc);
-    assert_string_equal(output, "0100[more...]");
-
-    maxoutput = 11;
-    output = format_hex_ex(input, input_size, maxoutput, blocksize, separator, &gc);
-    assert_string_equal(output, "0[more...]");
-
-    maxoutput = 10;
-    output = format_hex_ex(input, input_size, maxoutput, blocksize, separator, &gc);
-    assert_string_equal(output, "0100ff10f");
-
-    maxoutput = 9;
-    output = format_hex_ex(input, input_size, maxoutput, blocksize, separator, &gc);
-    assert_string_equal(output, "0100ff10");
-
-    gc_free(&gc);
-}
 
 struct test_buffer_list_aggregate_ctx {
     struct buffer_list *empty;
@@ -389,9 +329,8 @@ test_snprintf(void **state)
 
     /* Instead of trying to trick the compiler here, disable the warnings
      * for this unit test. We know that the results will be truncated
-     * and we want to test that. Not we need the clang as clang-cl (msvc) does
-     * not define __GNUC__ like it does under UNIX(-like) platforms */
-#if defined(__GNUC__) || defined(__clang__)
+     * and we want to test that */
+#if defined(__GNUC__)
 /* some clang version do not understand -Wformat-truncation, so ignore the
  * warning to avoid warnings/errors (-Werror) about unknown pragma/option */
 #if defined(__clang__)
@@ -419,7 +358,7 @@ test_snprintf(void **state)
     assert_int_equal(ret, 10);
     assert_int_equal(buf[9], '\0');
 
-#if defined(__GNUC__) || defined(__clang__)
+#if defined(__GNUC__)
 #pragma GCC diagnostic pop
 #if defined(__clang__)
 #pragma clang diagnostic pop
@@ -427,40 +366,11 @@ test_snprintf(void **state)
 #endif
 }
 
-void
-test_buffer_chomp(void **state)
-{
-    struct gc_arena gc = gc_new();
-    struct buffer buf = alloc_buf_gc(1024, &gc);
-
-    const char test1[] =  "There is a nice 1234 year old tree!\n\r";
-    buf_write(&buf, test1, sizeof(test1));
-    buf_chomp(&buf);
-    /* Check that our own method agrees */
-    assert_true(string_check_buf(&buf, CC_PRINT | CC_NULL, CC_CRLF));
-    assert_string_equal(BSTR(&buf), "There is a nice 1234 year old tree!");
-
-    struct buffer buf2 = alloc_buf_gc(1024, &gc);
-    const char test2[] =  "CR_RESPONSE,MTIx\x0a\x00";
-    buf_write(&buf2, test2, sizeof(test2));
-    buf_chomp(&buf2);
-
-    buf_chomp(&buf2);
-    /* Check that our own method agrees */
-    assert_true(string_check_buf(&buf2, CC_PRINT | CC_NULL, CC_CRLF));
-    assert_string_equal(BSTR(&buf2), "CR_RESPONSE,MTIx");
-
-    gc_free(&gc);
-}
-
 int
 main(void)
 {
-    openvpn_unit_test_setup();
     const struct CMUnitTest tests[] = {
         cmocka_unit_test(test_buffer_strprefix),
-        cmocka_unit_test(test_buffer_printf_catrunc),
-        cmocka_unit_test(test_buffer_format_hex_ex),
         cmocka_unit_test_setup_teardown(test_buffer_list_aggregate_separator_empty,
                                         test_buffer_list_setup,
                                         test_buffer_list_teardown),
@@ -487,8 +397,7 @@ main(void)
         cmocka_unit_test(test_buffer_gc_realloc),
         cmocka_unit_test(test_character_class),
         cmocka_unit_test(test_character_string_mod_buf),
-        cmocka_unit_test(test_snprintf),
-        cmocka_unit_test(test_buffer_chomp)
+        cmocka_unit_test(test_snprintf)
     };
 
     return cmocka_run_group_tests_name("buffer", tests, NULL, NULL);
