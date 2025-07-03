@@ -5,7 +5,7 @@
  *             packet encryption, packet authentication, and
  *             packet compression.
  *
- *  Copyright (C) 2002-2024 OpenVPN Inc <sales@openvpn.net>
+ *  Copyright (C) 2002-2025 OpenVPN Inc <sales@openvpn.net>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License version 2
@@ -44,8 +44,10 @@ time_t now_usec = 0;       /* GLOBAL */
 void
 update_now(const time_t system_time)
 {
-    const int forward_threshold = 86400; /* threshold at which to dampen forward jumps */
-    const int backward_trigger  = 10;  /* backward jump must be >= this many seconds before we adjust */
+    /* threshold at which to dampen forward jumps */
+    const int forward_threshold = 86400;
+    /* backward jump must be >= this many seconds before we adjust */
+    const int backward_trigger = 10;
     time_t real_time = system_time + now_adj;
 
     if (real_time > now)
@@ -105,7 +107,7 @@ tv_string_abs(const struct timeval *tv, struct gc_arena *gc)
 /* format a time_t as ascii, or use current time if 0 */
 
 const char *
-time_string(time_t t, int usec, bool show_usec, struct gc_arena *gc)
+time_string(time_t t, long usec, bool show_usec, struct gc_arena *gc)
 {
     struct buffer out = alloc_buf_gc(64, gc);
     struct timeval tv;

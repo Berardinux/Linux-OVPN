@@ -5,9 +5,9 @@
  *             packet encryption, packet authentication, and
  *             packet compression.
  *
- *  Copyright (C) 2002-2024 OpenVPN Technologies, Inc. <sales@openvpn.net>
+ *  Copyright (C) 2002-2025 OpenVPN Technologies, Inc. <sales@openvpn.net>
  *  Copyright (C) 2014-2015 David Sommerseth <davids@redhat.com>
- *  Copyright (C) 2016-2024 David Sommerseth <davids@openvpn.net>
+ *  Copyright (C) 2016-2025 David Sommerseth <davids@openvpn.net>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License version 2
@@ -33,6 +33,7 @@
 #include "env_set.h"
 
 #include "run_command.h"
+#include "platform.h"
 
 /*
  * Set environmental variable (int or string).
@@ -235,6 +236,30 @@ env_set_print(int msglevel, const struct env_set *es)
 }
 
 void
+env_set_write_file(const char *path, const struct env_set *es)
+{
+    FILE *fp = platform_fopen(path, "w");
+    if (!fp)
+    {
+        msg(M_ERR, "could not write env set to '%s'", path);
+        return;
+    }
+
+    if (es)
+    {
+        const struct env_item *item =  es->list;
+        while (item)
+        {
+            fputs(item->string, fp);
+            fputc('\n', fp);
+            item = item->next;
+        }
+    }
+
+    fclose(fp);
+}
+
+void
 env_set_inherit(struct env_set *es, const struct env_set *src)
 {
     const struct env_item *e;
@@ -259,7 +284,7 @@ void
 setenv_counter(struct env_set *es, const char *name, counter_type value)
 {
     char buf[64];
-    openvpn_snprintf(buf, sizeof(buf), counter_format, value);
+    snprintf(buf, sizeof(buf), counter_format, value);
     setenv_str(es, name, buf);
 }
 
@@ -267,7 +292,7 @@ void
 setenv_int(struct env_set *es, const char *name, int value)
 {
     char buf[64];
-    openvpn_snprintf(buf, sizeof(buf), "%d", value);
+    snprintf(buf, sizeof(buf), "%d", value);
     setenv_str(es, name, buf);
 }
 
@@ -275,7 +300,7 @@ void
 setenv_long_long(struct env_set *es, const char *name, long long value)
 {
     char buf[64];
-    openvpn_snprintf(buf, sizeof(buf), "%" PRIi64, (int64_t)value);
+    snprintf(buf, sizeof(buf), "%" PRIi64, (int64_t)value);
     setenv_str(es, name, buf);
 }
 
@@ -310,7 +335,7 @@ setenv_str_incr(struct env_set *es, const char *name, const char *value)
     strcpy(tmpname, name);
     while (NULL != env_set_get(es, tmpname) && counter < 1000)
     {
-        ASSERT(openvpn_snprintf(tmpname, tmpname_len, "%s_%u", name, counter));
+        ASSERT(snprintf(tmpname, tmpname_len, "%s_%u", name, counter));
         counter++;
     }
     if (counter < 1000)

@@ -33,6 +33,7 @@
 #include <string.h>
 #include <setjmp.h>
 #include <cmocka.h>
+#include "test_common.h"
 
 #include "crypto.h"
 #include "options.h"
@@ -67,11 +68,6 @@ print_link_socket_actual(const struct link_socket_actual *act, struct gc_arena *
 {
     return "dummy print_link_socket_actual from unit test";
 }
-
-struct test_pkt_context {
-    struct tls_auth_standalone tas_tls_auth;
-    struct tls_auth_standalone tas_crypt;
-};
 
 const char static_key[] = "<tls-auth>\n"
                           "-----BEGIN OpenVPN Static key V1-----\n"
@@ -662,6 +658,7 @@ test_extract_control_message(void **ut_state)
 int
 main(void)
 {
+    openvpn_unit_test_setup();
     const struct CMUnitTest tests[] = {
         cmocka_unit_test(test_tls_decrypt_lite_none),
         cmocka_unit_test(test_tls_decrypt_lite_auth),

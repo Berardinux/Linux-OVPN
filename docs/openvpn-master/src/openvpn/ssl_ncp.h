@@ -5,7 +5,7 @@
  *             packet encryption, packet authentication, and
  *             packet compression.
  *
- *  Copyright (C) 2002-2024 OpenVPN Inc <sales@openvpn.net>
+ *  Copyright (C) 2002-2025 OpenVPN Inc <sales@openvpn.net>
  *  Copyright (C) 2010-2021 Fox Crypto B.V. <openvpn@foxcrypto.com>
  *
  *  This program is free software; you can redistribute it and/or modify
@@ -23,7 +23,8 @@
  */
 
 /**
- * @file Control Channel SSL/Data dynamic negotiation Module
+ * @file
+ * Control Channel SSL/Data dynamic negotiation Module
  * This file is split from ssl.h to be able to unit test it.
  */
 
@@ -65,7 +66,10 @@ check_pull_client_ncp(struct context *c, int found);
  * Make sure to call tls_session_update_crypto_params() after calling this
  * function.
  *
- * @param gc   gc arena that is ONLY used to allocate the returned string
+ * @param server_list   Our own cipher list
+ * @param peer_info     Peer information
+ * @param remote_cipher Fallback cipher, ignored if peer sent \c IV_CIPHERS
+ * @param gc            gc arena that is used to allocate the returned string
  *
  * @returns NULL if no common cipher is available, otherwise the best common
  * cipher
@@ -90,7 +94,7 @@ tls_peer_ncp_list(const char *peer_info, struct gc_arena *gc);
  * Check whether the ciphers in the supplied list are supported.
  *
  * @param list          Colon-separated list of ciphers
- * @parms gc            gc_arena to allocate the returned string
+ * @param gc            gc_arena to allocate the returned string
  *
  * @returns             colon separated string of normalised (via
  *                      translate_cipher_name_from_openvpn) and
@@ -156,4 +160,23 @@ get_p2p_ncp_cipher(struct tls_session *session, const char *peer_info,
 bool
 check_session_cipher(struct tls_session *session, struct options *options);
 
+/**
+ * Checks for availability of Chacha20-Poly1305 and sets
+ * the ncp_cipher to either AES-256-GCM:AES-128-GCM or
+ * AES-256-GCM:AES-128-GCM:CHACHA20-POLY1305 if not set.
+ *
+ * If DEFAULT is in the ncp_cipher string, it will be replaced
+ * by the default cipher string as defined above.
+ */
+void
+options_postprocess_setdefault_ncpciphers(struct options *o);
+
+/** returns the o->ncp_ciphers in brackets, e.g.
+ *  (AES-256-GCM:CHACHA20-POLY1305) if o->ncp_ciphers_conf
+ *  and o->ncp_ciphers differ, otherwise an empty string
+ *
+ *  The returned string will be allocated in the passed \c gc
+ */
+const char *
+ncp_expanded_ciphers(struct options *o, struct gc_arena *gc);
 #endif /* ifndef OPENVPN_SSL_NCP_H */

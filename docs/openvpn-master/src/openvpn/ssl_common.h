@@ -5,7 +5,7 @@
  *             packet encryption, packet authentication, and
  *             packet compression.
  *
- *  Copyright (C) 2002-2024 OpenVPN Inc <sales@openvpn.net>
+ *  Copyright (C) 2002-2025 OpenVPN Inc <sales@openvpn.net>
  *  Copyright (C) 2010-2021 Fox Crypto B.V. <openvpn@foxcrypto.com>
  *
  *  This program is free software; you can redistribute it and/or modify
@@ -23,7 +23,8 @@
  */
 
 /**
- * @file Control Channel Common Data Structures
+ * @file
+ * Control Channel Common Data Structures
  */
 
 #ifndef SSL_COMMON_H_
@@ -74,7 +75,10 @@
  *
  * @{
  */
-#define S_ERROR          -1     /**< Error state.  */
+#define S_ERROR         (-2)    /**< Error state.  */
+#define S_ERROR_PRE     (-1)    /**< Error state but try to send out alerts
+                                 *  before killing the keystore and moving
+                                 *  it to S_ERROR */
 #define S_UNDEF           0     /**< Undefined state, used after a \c
                                  *   key_state is cleaned up. */
 #define S_INITIAL         1     /**< Initial \c key_state state after
@@ -313,9 +317,7 @@ struct tls_options
     const char *remote_options;
 
     /* from command line */
-    bool replay;
     bool single_session;
-    bool disable_occ;
     int mode;
     bool pull;
     /**
@@ -332,8 +334,11 @@ struct tls_options
     int transition_window;
     int handshake_window;
     interval_t packet_timeout;
-    int renegotiate_bytes;
-    int renegotiate_packets;
+    int64_t renegotiate_bytes;
+    int64_t renegotiate_packets;
+    /** limit for AEAD cipher when not running in epoch data key mode,
+     *  this is the sum of packets + blocks that are allowed to be used */
+    uint64_t aead_usage_limit;
     interval_t renegotiate_seconds;
 
     /* cert verification parms */
@@ -360,10 +365,15 @@ struct tls_options
 
     int replay_window;                 /* --replay-window parm */
     int replay_time;                   /* --replay-window parm */
-    bool tcp_mode;
 
     const char *config_ciphername;
     const char *config_ncp_ciphers;
+
+    /** whether our underlying data channel supports new data channel
+     * features (epoch keys with AEAD tag at the end). This is always true
+     * for the internal implementation but can be false for DCO
+     * implementations */
+    bool data_epoch_supported;
 
     bool tls_crypt_v2;
     const char *tls_crypt_v2_verify_script;
@@ -494,8 +504,6 @@ struct tls_session
      */
     int key_id;
 
-    int limit_next;             /* used for traffic shaping on the control channel */
-
     int verify_maxlevel;
 
     char *common_name;
@@ -559,18 +567,22 @@ struct tls_session
  * tls_session reaches S_ACTIVE, this state machine moves to CAS_PENDING (server)
  * or CAS_CONNECT_DONE (client/p2p) as clients skip the stages associated with
  * connect scripts/plugins */
-enum multi_status {
+enum multi_status
+{
     CAS_NOT_CONNECTED,
-    CAS_WAITING_AUTH,               /**< Initial TLS connection established but deferred auth is not yet finished */
-    CAS_PENDING,                    /**< Options import (Connect script/plugin, ccd,...) */
-    CAS_PENDING_DEFERRED,           /**< Waiting on an async option import handler */
-    CAS_PENDING_DEFERRED_PARTIAL,   /**< at least handler succeeded but another is still pending */
-    CAS_FAILED,                     /**< Option import failed or explicitly denied the client */
-    CAS_WAITING_OPTIONS_IMPORT,     /**< client with pull or p2p waiting for first time options import */
-    CAS_RECONNECT_PENDING,          /**< session has already successful established (CAS_CONNECT_DONE)
-                                     * but has a reconnect and needs to redo some initialisation, this state is
-                                     * similar CAS_WAITING_OPTIONS_IMPORT but skips a few things. The normal connection
-                                     * skips this step. */
+    CAS_WAITING_AUTH, /**< Initial TLS connection established but deferred auth is not yet finished
+                       */
+    CAS_PENDING,      /**< Options import (Connect script/plugin, ccd,...) */
+    CAS_PENDING_DEFERRED,         /**< Waiting on an async option import handler */
+    CAS_PENDING_DEFERRED_PARTIAL, /**< at least handler succeeded but another is still pending */
+    CAS_FAILED,                   /**< Option import failed or explicitly denied the client */
+    CAS_WAITING_OPTIONS_IMPORT,   /**< client with pull or p2p waiting for first time options import
+                                   */
+    /** session has already successful established (CAS_CONNECT_DONE) but has a
+     * reconnect and needs to redo some initialisation, this state is similar
+     * CAS_WAITING_OPTIONS_IMPORT but skips a few things. The normal connection
+     * skips this step. */
+    CAS_RECONNECT_PENDING,
     CAS_CONNECT_DONE,
 };
 
@@ -618,50 +630,63 @@ struct tls_multi
     int n_hard_errors; /* errors due to TLS negotiation failure */
     int n_soft_errors; /* errors due to unrecognized or failed-to-authenticate incoming packets */
 
-    /*
-     * Our locked common name, username, and cert hashes (cannot change during the life of this tls_multi object)
+    /**
+     * Our locked common name, username, and cert hashes
+     * (cannot change during the life of this tls_multi object)
      */
     char *locked_cn;
+
+    /** The locked username is the username we assume the client is using.
+     * Normally the username used for initial authentication unless
+     * overridden by --override-username */
     char *locked_username;
+
+    /** The username that client initially used before being overridden
+     * by --override-user */
+    char *locked_original_username;
+
     struct cert_hash_set *locked_cert_hash_set;
 
-    /** Time of last when we updated the cached state of
+    /**
+     * Time of last when we updated the cached state of
      * tls_authentication_status deferred files */
     time_t tas_cache_last_update;
 
     /** The number of times we updated the cache */
     unsigned int tas_cache_num_updates;
 
-    /*
-     * An error message to send to client on AUTH_FAILED
-     */
+    /** An error message to send to client on AUTH_FAILED */
     char *client_reason;
 
-    /*
+    /**
      * A multi-line string of general-purpose info received from peer
      * over control channel.
      */
     char *peer_info;
-    char *auth_token;    /**< If server sends a generated auth-token,
-                          *   this is the token to use for future
-                          *   user/pass authentications in this session.
-                          */
-    char *auth_token_initial;
-    /**< The first auth-token we sent to a client. We use this to remember
+    /**
+     * If server sends a generated auth-token,
+     * this is the token to use for future
+     * user/pass authentications in this session.
+     */
+    char *auth_token;
+    /**
+     * The first auth-token we sent to a client. We use this to remember
      * the session ID and initial timestamp when generating new auth-token.
      */
-#define  AUTH_TOKEN_HMAC_OK              (1<<0)
-    /**< Auth-token sent from client has valid hmac */
-#define  AUTH_TOKEN_EXPIRED              (1<<1)
-    /**< Auth-token sent from client has expired */
-#define  AUTH_TOKEN_VALID_EMPTYUSER      (1<<2)
-    /**<
-     * Auth-token is only valid for an empty username
-     * and not the username actually supplied from the client
-     *
-     * OpenVPN 3 clients sometimes wipes or replaces the username with a
-     * username hint from their config.
-     */
+    char *auth_token_initial;
+
+/** Auth-token sent from client has valid hmac */
+#define AUTH_TOKEN_HMAC_OK         (1 << 0)
+/** Auth-token sent from client has expired */
+#define AUTH_TOKEN_EXPIRED         (1 << 1)
+/**
+ * Auth-token is only valid for an empty username
+ * and not the username actually supplied from the client
+ *
+ * OpenVPN 3 clients sometimes wipes or replaces the username with a
+ * username hint from their config.
+ */
+#define AUTH_TOKEN_VALID_EMPTYUSER (1 << 2)
 
     /* For P_DATA_V2 */
     uint32_t peer_id;
@@ -673,10 +698,10 @@ struct tls_multi
     /*
      * Our session objects.
      */
+    /** Array of \c tls_session objects
+     *  representing control channel
+     *  sessions with the remote peer. */
     struct tls_session session[TM_SIZE];
-    /**< Array of \c tls_session objects
-     *   representing control channel
-     *   sessions with the remote peer. */
 
     /* Only used when DCO is used to remember how many keys we installed
      * for this session */

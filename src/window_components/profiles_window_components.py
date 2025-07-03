@@ -205,84 +205,72 @@ class ProfilesWindowUIComponents:
             temp_pass_file = None
 
             try:
+                script_path = "../scripts/start_vpn_connection.sh"
+                script_args = ["pkexec", script_path, vpn_path, status_path]
+
                 if used_passwd:
-                    temp_pass_file = tempfile.NamedTemporaryFile(delete=False, mode="w")
-                    temp_pass_file.write(passwd + "\n")
-                    temp_pass_file.close()
-                    openvpn_args = [
-                            "pkexec", "/opt/LinuxOVPN/docs/openvpn-local/sbin/openvpn", 
-                            "--config", vpn_path, 
-                            "--askpass", temp_pass_file.name,
-                            "--status", status_path, "1",
-                            "--status-output-mode", "644"
-                            ]
-                else:
-                    openvpn_args = [
-                            "pkexec", "/opt/LinuxOVPN/docs/openvpn-local/sbin/openvpn", 
-                            "--config", vpn_path,
-                            "--status", status_path, "1",
-                            "--status-output-mode", "644"
-                            ]
-    
+                    script_args.append(passwd)
+
                 process = subprocess.Popen(
-                    openvpn_args,
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.STDOUT,
-                    text=True,
-                    bufsize=1,
-                    universal_newlines=True
-                )
-    
+                        script_args,
+                        stdout=subprocess.PIPE,
+                        stderr=subprocess.STDOUT,
+                        text=True,
+                        bufsize=1,
+                        universal_newlines=True
+                        )
+
                 vpn_initialized = False
                 for line in process.stdout:
                     print(line, end="")
                     if "Initialization Sequence Completed" in line:
                         vpn_initialized = True
                         break
-    
+
                     if process.poll() is not None:
                         if process.returncode != 0:
-                            print("pkexec canceled or failed.")
+                            print("VPN script canceled or failed.")
                             self._recreate_profiles_ui()
                             return True
                         else:
                             break
-    
+
                 if not vpn_initialized:
                     print("VPN did not initialize properly.")
                     self._recreate_profiles_ui()
                     return True
-    
+                    
                 print("Started VPN process with PID:", process.pid)
                 self.vpn_process = process
-    
                 switch.set_active(True)
-    
+
                 for child in self.body_box.get_children():
                     self.body_box.remove(child)
                 self.refresh_connected_view(profile_name, profile_data)
-    
+
                 return True
     
             except Exception as e:
-                print("Error launching OpenVPN:", e)
+                print("Error launching VPN script:", e)
                 self._recreate_profiles_ui()
                 return True
-
-            finally:
-                if used_passwd and temp_pass_file:
-                    try:
-                        os.unlink(temp_pass_file.name)
-                        print("Deleted temp password file: ", temp_pass_file.name)
-                    except Exception as e:
-                        print("Could not delete temp password file: ", e)
 
         else:
             print("Switch is off")
         
             if hasattr(self, "vpn_process") and self.vpn_process:
-                pid = str(self.vpn_process.pid)
-                kill_args = ["pkexec", "kill", "-9", pid]
+                bash_pid = str(self.vpn_process.pid)
+
+                try:
+                    with open("/tmp/openvpn.pid", "r") as f:
+                        openvpn_pid = f.read().strip()
+                except FileNotFoundError:
+                    print("Could not read /tmp/openvpn.pid; OpenVPN process might not have started.")
+                    openvpn_pid = None
+
+                kill_args = ["pkexec", "kill", "-9", bash_pid]
+                if openvpn_pid:
+                    kill_args.append(openvpn_pid)
 
                 process = subprocess.Popen(
                     kill_args,

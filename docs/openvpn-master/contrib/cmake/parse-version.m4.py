@@ -5,7 +5,7 @@
 #             packet encryption, packet authentication, and
 #             packet compression.
 #
-#  Copyright (C) 2022-2024 OpenVPN Inc <sales@openvpn.net>
+#  Copyright (C) 2022-2025 OpenVPN Inc <sales@openvpn.net>
 #  Copyright (C) 2022-2022 Lev Stipakov <lev@lestisoftware.fi>
 #
 #  This program is free software; you can redistribute it and/or modify
@@ -61,4 +61,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

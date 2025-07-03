@@ -5,7 +5,7 @@
  *             packet encryption, packet authentication, and
  *             packet compression.
  *
- *  Copyright (C) 2017-2024 David Sommerseth <davids@openvpn.net>
+ *  Copyright (C) 2017-2025 David Sommerseth <davids@openvpn.net>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License version 2
@@ -31,10 +31,14 @@
 #define PLUGIN_NAME "base64.c"
 
 /* Exported plug-in v3 API functions */
-plugin_log_t ovpn_log = NULL;                      /**< Pointer to the OpenVPN log function.  See plugin_log() */
-plugin_vlog_t ovpn_vlog = NULL;                    /**< Pointer to the OpenVPN vlog function. See plugin_vlog() */
-plugin_base64_encode_t ovpn_base64_encode = NULL;  /**< Pointer to the openvpn_base64_encode () function */
-plugin_base64_decode_t ovpn_base64_decode = NULL;  /**< Pointer to the openvpn_base64_decode () function */
+/** Pointer to the OpenVPN log function.  See plugin_log() */
+plugin_log_t ovpn_log = NULL;
+/** Pointer to the OpenVPN vlog function. See plugin_vlog() */
+plugin_vlog_t ovpn_vlog = NULL;
+/** Pointer to the openvpn_base64_encode () function */
+plugin_base64_encode_t ovpn_base64_encode = NULL;
+/** Pointer to the openvpn_base64_decode () function */
+plugin_base64_decode_t ovpn_base64_decode = NULL;
 
 /**
  * Search the environment pointer for a specific env var name
@@ -44,7 +48,7 @@ plugin_base64_decode_t ovpn_base64_decode = NULL;  /**< Pointer to the openvpn_b
  * returns, any returned pointers are invalid.
  *
  * @param name  String containing the env.var name to search for
- * @param envp  String array pointer to the environment variable
+ * @param envp  String array pointer to the environment variables
  *
  * @return Returns a pointer to the value in the environment variable
  *         table on successful match.  Otherwise NULL is returned
@@ -138,10 +142,11 @@ openvpn_plugin_open_v3(const int v3structver,
  * For the arguments, see the include/openvpn-plugin.h file
  * for details on the function parameters
  *
- * @param args        Pointer to a struct with details about the plug-in
- *                    call from the main OpenVPN process.
- * @param returndata  Pointer to a struct where the plug-in can provide
- *                    information back to OpenVPN to be processed
+ * @param handle   Pointer to the plug-in global context buffer, which
+ *                 need to be released by this function
+ * @param type     Type of the hook
+ * @param argv     String array pointer to arguments for the hook
+ * @param envp     String array pointer to current environment variables
  *
  * @return  Must return OPENVPN_PLUGIN_FUNC_SUCCESS or
  *          OPENVPN_PLUGIN_FUNC_DEFERRED on success.  Otherwise it

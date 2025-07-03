@@ -1,7 +1,7 @@
 /*
  *  Generic interface to platform specific networking code
  *
- *  Copyright (C) 2016-2024 Antonio Quartulli <a@unstable.cc>
+ *  Copyright (C) 2016-2025 Antonio Quartulli <a@unstable.cc>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License version 2
@@ -302,7 +302,7 @@ int net_route_v4_del(openvpn_net_ctx_t *ctx, const in_addr_t *dst,
                      int metric);
 
 /**
- * Delete a route for an IPv4 address/network
+ * Delete a route for an IPv6 address/network
  *
  * @param ctx       the implementation specific context
  * @param dst       the destination of the route

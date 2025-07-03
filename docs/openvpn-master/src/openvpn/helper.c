@@ -5,7 +5,7 @@
  *             packet encryption, packet authentication, and
  *             packet compression.
  *
- *  Copyright (C) 2002-2024 OpenVPN Inc <sales@openvpn.net>
+ *  Copyright (C) 2002-2025 OpenVPN Inc <sales@openvpn.net>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License version 2
@@ -118,7 +118,8 @@ helper_add_route(const in_addr_t network, const in_addr_t netmask, struct option
                              print_in_addr_t(network, 0, &o->gc),
                              print_in_addr_t(netmask, 0, &o->gc),
                              NULL,
-                             NULL);
+                             NULL,
+                             o->route_default_table_id);
 }
 
 static void
@@ -137,6 +138,32 @@ verify_common_subnet(const char *opt, const in_addr_t a, const in_addr_t b, cons
 }
 
 
+/**
+ * Set --topology default depending on --mode
+ */
+void
+helper_setdefault_topology(struct options *o)
+{
+    if (o->topology != TOP_UNDEF)
+    {
+        return;
+    }
+    int dev = dev_type_enum(o->dev, o->dev_type);
+    if (dev != DEV_TYPE_TUN)
+    {
+        return;
+    }
+    if (o->mode == MODE_SERVER)
+    {
+        o->topology = TOP_SUBNET;
+    }
+    else
+    {
+        o->topology = TOP_NET30;
+    }
+}
+
+
 /*
  * Process server, server-bridge, and client helper
  * directives after the parameters themselves have been
@@ -151,7 +178,6 @@ helper_client_server(struct options *o)
      * Get tun/tap/null device type
      */
     const int dev = dev_type_enum(o->dev, o->dev_type);
-    const int topology = o->topology;
 
     /*
      *
@@ -177,11 +203,11 @@ helper_client_server(struct options *o)
 
         if (o->server_flags & SF_NOPOOL)
         {
-            msg( M_USAGE, "--server-ipv6 is incompatible with 'nopool' option" );
+            msg(M_USAGE, "--server-ipv6 is incompatible with 'nopool' option");
         }
         if (o->ifconfig_ipv6_pool_defined)
         {
-            msg( M_USAGE, "--server-ipv6 already defines an ifconfig-ipv6-pool, so you can't also specify --ifconfig-pool explicitly");
+            msg(M_USAGE, "--server-ipv6 already defines an ifconfig-ipv6-pool, so you can't also specify --ifconfig-pool explicitly");
         }
 
         o->mode = MODE_SERVER;
@@ -207,7 +233,7 @@ helper_client_server(struct options *o)
                                                   o->server_netbits_ipv6 < 112 ? 0x1000 : 2);
         o->ifconfig_ipv6_pool_netbits = o->server_netbits_ipv6;
 
-        push_option( o, "tun-ipv6", M_USAGE );
+        push_option(o, "tun-ipv6", M_USAGE);
     }
 
     /*
@@ -305,8 +331,10 @@ helper_client_server(struct options *o)
 
             o->mode = MODE_SERVER;
             o->tls_server = true;
+            /* Need to know topology now */
+            helper_setdefault_topology(o);
 
-            if (topology == TOP_NET30 || topology == TOP_P2P)
+            if (o->topology == TOP_NET30 || o->topology == TOP_P2P)
             {
                 o->ifconfig_local = print_in_addr_t(o->server_network + 1, 0, &o->gc);
                 o->ifconfig_remote_netmask = print_in_addr_t(o->server_network + 2, 0, &o->gc);
@@ -324,12 +352,12 @@ helper_client_server(struct options *o)
                 {
                     push_option(o, print_opt_route(o->server_network, o->server_netmask, &o->gc), M_USAGE);
                 }
-                else if (topology == TOP_NET30)
+                else if (o->topology == TOP_NET30)
                 {
                     push_option(o, print_opt_route(o->server_network + 1, 0, &o->gc), M_USAGE);
                 }
             }
-            else if (topology == TOP_SUBNET)
+            else if (o->topology == TOP_SUBNET)
             {
                 o->ifconfig_local = print_in_addr_t(o->server_network + 1, 0, &o->gc);
                 o->ifconfig_remote_netmask = print_in_addr_t(o->server_netmask, 0, &o->gc);
@@ -354,9 +382,9 @@ helper_client_server(struct options *o)
                 ASSERT(0);
             }
 
-            push_option(o, print_opt_topology(topology, &o->gc), M_USAGE);
+            push_option(o, print_opt_topology(o->topology, &o->gc), M_USAGE);
 
-            if (topology == TOP_NET30 && !(o->server_flags & SF_NOPOOL))
+            if (o->topology == TOP_NET30 && !(o->server_flags & SF_NOPOOL))
             {
                 msg(M_WARN, "WARNING: --topology net30 support for server "
                     "configs with IPv4 pools will be removed in a future "
@@ -394,7 +422,7 @@ helper_client_server(struct options *o)
         }
 
         /* set push-ifconfig-constraint directive */
-        if ((dev == DEV_TYPE_TAP || topology == TOP_SUBNET))
+        if ((dev == DEV_TYPE_TAP || o->topology == TOP_SUBNET))
         {
             o->push_ifconfig_constraint_defined = true;
             o->push_ifconfig_constraint_network = o->server_network;
@@ -427,7 +455,7 @@ helper_client_server(struct options *o)
      * if !nogw:
      *   push "route-gateway dhcp"
      */
-    else if (o->server_bridge_defined | o->server_bridge_proxy_dhcp)
+    else if (o->server_bridge_defined || o->server_bridge_proxy_dhcp)
     {
         if (o->client)
         {
@@ -473,7 +501,7 @@ helper_client_server(struct options *o)
             push_option(o, print_opt_route_gateway_dhcp(&o->gc), M_USAGE);
         }
     }
-    else
+
     /*
      * HELPER DIRECTIVE:
      *
@@ -484,7 +512,7 @@ helper_client_server(struct options *o)
      * pull
      * tls-client
      */
-    if (o->client)
+    else if (o->client)
     {
         o->pull = true;
         o->tls_client = true;

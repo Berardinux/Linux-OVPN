@@ -79,7 +79,7 @@ Type=Application
 Name=LinuxOVPN
 Comment=Linux OpenVPN Connect
 Icon=/opt/LinuxOVPN/images/linuxovpn.png
-Exec=python3 LinuxOVPN
+Exec=pkexec python3 LinuxOVPN
 Path=/opt/LinuxOVPN/src
 Terminal=false
 EOM

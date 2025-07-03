@@ -5,7 +5,7 @@
  *             packet encryption, packet authentication, and
  *             packet compression.
  *
- *  Copyright (C) 2002-2024 OpenVPN Inc <sales@openvpn.net>
+ *  Copyright (C) 2002-2025 OpenVPN Inc <sales@openvpn.net>
  *  Copyright (C) 2010-2021 Fox Crypto B.V. <openvpn@foxcrypto.com>
  *
  *  This program is free software; you can redistribute it and/or modify
@@ -23,7 +23,8 @@
  */
 
 /**
- * @file Control Channel SSL/Data channel negotiation module
+ * @file
+ * Control Channel SSL/Data channel negotiation module
  */
 
 #ifndef OPENVPN_SSL_H
@@ -94,7 +95,7 @@
  * result. */
 #define IV_PROTO_NCP_P2P         (1<<5)
 
-/** Supports the --dns option introduced in version 2.6 */
+/** Supports the --dns option introduced in version 2.6. Not sent anymore. */
 #define IV_PROTO_DNS_OPTION      (1<<6)
 
 /** Support for explicit exit notify via control channel
@@ -106,6 +107,12 @@
 
 /** Support to dynamic tls-crypt (renegotiation with TLS-EKM derived tls-crypt key) */
 #define IV_PROTO_DYN_TLS_CRYPT   (1<<9)
+
+/** Support the extended packet id and epoch format for data channel packets */
+#define IV_PROTO_DATA_EPOCH      (1<<10)
+
+/** Supports the --dns option after all the incompatible changes */
+#define IV_PROTO_DNS_OPTION_V2   (1<<11)
 
 /* Default field in X509 to be username */
 #define X509_USERNAME_FIELD_DEFAULT "CN"
@@ -274,13 +281,14 @@ int tls_multi_process(struct tls_multi *multi,
  * packet is inserted into the Reliability Layer and will be handled
  * later.
  *
- * @param multi - The TLS multi structure associated with the VPN tunnel
+ * @param[in]  multi    The TLS multi structure associated with the VPN tunnel
  *     of this packet.
- * @param from - The source address of the packet.
- * @param buf - A buffer structure containing the incoming packet.
- * @param opt - Returns a crypto options structure with the appropriate security
- *     parameters to handle the packet if it is a data channel packet.
- * @param ad_start - Returns a pointer to the start of the authenticated data of
+ * @param[in]  from     The source address of the packet.
+ * @param[in]  buf      buffer structure containing the incoming packet.
+ * @param[out] opt      Returns a crypto options structure with the appropriate
+ *     security parameters to handle the packet if it is a data channel packet.
+ * @param[in] floated   Set whether the peer is allowed to have floated.
+ * @param[out] ad_start Returns a pointer to the start of the authenticated data
  *     of this packet
  *
  * @return
@@ -381,7 +389,7 @@ void tls_post_encrypt(struct tls_multi *multi, struct buffer *buf);
 void pem_password_setup(const char *auth_file);
 
 /* Enables the use of user/password authentication */
-void enable_auth_user_pass();
+void enable_auth_user_pass(void);
 
 /*
  * Setup authentication username and password. If auth_file is given, use the
@@ -415,11 +423,7 @@ void ssl_set_auth_token_user(const char *username);
 bool ssl_clean_auth_token(void);
 
 #ifdef ENABLE_MANAGEMENT
-/*
- * ssl_get_auth_challenge will parse the server-pushed auth-failed
- * reason string and return a dynamically allocated
- * auth_challenge_info struct.
- */
+
 void ssl_purge_auth_challenge(void);
 
 void ssl_put_auth_challenge(const char *cr_str);
@@ -461,6 +465,8 @@ void tls_update_remote_addr(struct tls_multi *multi,
  * @param frame_fragment  The fragment frame options.
  * @param lsi             link socket info to adjust MTU related options
  *                        depending on the current protocol
+ * @param dco             The dco context to perform dco_set_peer()
+ *                        whenever a crypto param update occurs.
  *
  * @return true if updating succeeded or keys are already generated, false otherwise.
  */
@@ -469,7 +475,8 @@ bool tls_session_update_crypto_params(struct tls_multi *multi,
                                       struct options *options,
                                       struct frame *frame,
                                       struct frame *frame_fragment,
-                                      struct link_socket_info *lsi);
+                                      struct link_socket_info *lsi,
+                                      dco_context_t *dco);
 
 /*
  * inline functions
@@ -544,9 +551,6 @@ const char *protocol_dump(struct buffer *buffer,
 void show_tls_performance_stats(void);
 
 #endif
-
-/*#define EXTRACT_X509_FIELD_TEST*/
-void extract_x509_field_test(void);
 
 /**
  * Given a key_method, return true if opcode represents the one of the

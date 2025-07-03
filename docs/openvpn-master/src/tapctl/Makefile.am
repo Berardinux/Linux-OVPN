@@ -1,8 +1,8 @@
 #
 #  tapctl -- Utility to manipulate TUN/TAP interfaces on Windows
 #
-#  Copyright (C) 2002-2024 OpenVPN Inc <sales@openvpn.net>
-#  Copyright (C) 2018-2024 Simon Rozman <simon@rozman.si>
+#  Copyright (C) 2002-2025 OpenVPN Inc <sales@openvpn.net>
+#  Copyright (C) 2018-2025 Simon Rozman <simon@rozman.si>
 #
 #  This program is free software; you can redistribute it and/or modify
 #  it under the terms of the GNU General Public License version 2
@@ -18,7 +18,7 @@
 #  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 #
 
-include $(top_srcdir)/build/ltrc.inc
+include $(top_srcdir)/ltrc.inc
 
 MAINTAINERCLEANFILES = $(srcdir)/Makefile.in
 

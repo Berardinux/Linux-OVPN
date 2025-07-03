@@ -5,7 +5,7 @@
  *             packet encryption, packet authentication, and
  *             packet compression.
  *
- *  Copyright (C) 2002-2024 OpenVPN Inc <sales@openvpn.net>
+ *  Copyright (C) 2002-2025 OpenVPN Inc <sales@openvpn.net>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License version 2
@@ -25,8 +25,10 @@
 #ifndef OPENVPN_WIN32_H
 #define OPENVPN_WIN32_H
 
-#include <winioctl.h>
+#include <iphlpapi.h>
+#include <ws2tcpip.h>
 
+#include "syshead.h"
 #include "mtu.h"
 #include "openvpn-msg.h"
 #include "argv.h"
@@ -286,27 +288,17 @@ char *get_win_sys_path(void);
 /* call self in a subprocess */
 void fork_to_self(const char *cmdline);
 
-/* Find temporary directory */
-const char *win_get_tempdir(void);
-
-bool win_wfp_block_dns(const NET_IFINDEX index, const HANDLE msg_channel);
+bool win_wfp_block(const NET_IFINDEX index, const HANDLE msg_channel, BOOL dns_only);
 
 bool win_wfp_uninit(const NET_IFINDEX index, const HANDLE msg_channel);
 
-#define WIN_XP    0
-#define WIN_VISTA 1
-#define WIN_7     2
-#define WIN_8     3
-#define WIN_8_1   4
-#define WIN_10    5
-
-int win32_version_info(void);
-
-/*
- * String representation of Windows version number and name, see
- * https://msdn.microsoft.com/en-us/library/windows/desktop/ms724832(v=vs.85).aspx
+/**
+ * @brief Get Windows version string with architecture info.
+ *
+ * @param gc gc arena to allocate string.
+ * @return Version string, or "N/A" on failure.
  */
-const char *win32_version_string(struct gc_arena *gc, bool add_name);
+const char *win32_version_string(struct gc_arena *gc);
 
 /*
  * Send the |size| bytes in buffer |data| to the interactive service |pipe|
@@ -321,14 +313,6 @@ bool send_msg_iservice(HANDLE pipe, const void *data, size_t size,
  */
 int
 openvpn_execve(const struct argv *a, const struct env_set *es, const unsigned int flags);
-
-/*
- * openvpn_swprintf() is currently only used by Windows code paths
- * and when enabled for all platforms it will currently break older
- * OpenBSD versions lacking vswprintf(3) support in their libc.
- */
-bool
-openvpn_swprintf(wchar_t *const str, const size_t size, const wchar_t *const format, ...);
 
 /* Sleep that can be interrupted by signals and exit event */
 void win32_sleep(const int n);

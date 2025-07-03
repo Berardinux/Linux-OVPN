@@ -5,7 +5,7 @@
  *             packet encryption, packet authentication, and
  *             packet compression.
  *
- *  Copyright (C) 2002-2024 OpenVPN Inc <sales@openvpn.net>
+ *  Copyright (C) 2002-2025 OpenVPN Inc <sales@openvpn.net>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License version 2
@@ -157,6 +157,18 @@ struct socket_buffer_size
     int sndbuf;
 };
 
+/**
+ * Sets the receive and send buffer sizes of a socket descriptor.
+ *
+ * @param fd            The socket to modify
+ * @param sbs           new sizes.
+ * @param reduce_size   apply the new size even if smaller than current one
+ */
+void
+socket_set_buffers(socket_descriptor_t fd,
+                   const struct socket_buffer_size *sbs,
+                   bool reduce_size);
+
 /*
  * This is the main socket structure used by OpenVPN.  The SOCKET_
  * defines try to abstract away our implementation differences between
@@ -165,6 +177,11 @@ struct socket_buffer_size
 struct link_socket
 {
     struct link_socket_info info;
+
+    struct event_arg ev_arg;   /**< this struct will store a pointer to either mi or
+                                * link_socket, depending on the event type, to keep
+                                * it accessible it's placed within the same struct
+                                * it points to. */
 
     socket_descriptor_t sd;
     socket_descriptor_t ctrl_sd; /* only used for UDP over Socks */
@@ -207,6 +224,7 @@ struct link_socket
 #define SF_HOST_RANDOMIZE (1<<3)
 #define SF_GETADDRINFO_DGRAM (1<<4)
 #define SF_DCO_WIN (1<<5)
+#define SF_PREPEND_SA (1<<6)
     unsigned int sockflags;
     int mark;
     const char *bind_dev;
@@ -270,6 +288,7 @@ typedef struct {
         HANDLE h;
     };
     bool is_handle;
+    bool prepend_sa; /* are incoming packets prepended with sockaddr? */
 } sockethandle_t;
 
 int sockethandle_finalize(sockethandle_t sh,
@@ -327,9 +346,13 @@ int openvpn_connect(socket_descriptor_t sd,
 /*
  * Initialize link_socket object.
  */
-void link_socket_init_phase1(struct context *c, int mode);
+void
+link_socket_init_phase1(struct context *c,
+                        int sock_index,
+                        int mode);
 
-void link_socket_init_phase2(struct context *c);
+void link_socket_init_phase2(struct context *c,
+                             struct link_socket *sock);
 
 void do_preresolve(struct context *c);
 
@@ -347,16 +370,6 @@ const char *print_sockaddr_ex(const struct sockaddr *addr,
                               const char *separator,
                               const unsigned int flags,
                               struct gc_arena *gc);
-
-static inline
-const char *
-print_openvpn_sockaddr_ex(const struct openvpn_sockaddr *addr,
-                          const char *separator,
-                          const unsigned int flags,
-                          struct gc_arena *gc)
-{
-    return print_sockaddr_ex(&addr->addr.sa, separator, flags, gc);
-}
 
 static inline
 const char *
@@ -444,9 +457,9 @@ void link_socket_bad_outgoing_addr(void);
 
 void setenv_trusted(struct env_set *es, const struct link_socket_info *info);
 
-bool link_socket_update_flags(struct link_socket *ls, unsigned int sockflags);
+bool link_socket_update_flags(struct link_socket *sock, unsigned int sockflags);
 
-void link_socket_update_buffer_sizes(struct link_socket *ls, int rcvbuf, int sndbuf);
+void link_socket_update_buffer_sizes(struct link_socket *sock, int rcvbuf, int sndbuf);
 
 /*
  * Low-level functions
@@ -759,22 +772,6 @@ addrlist_match(const struct openvpn_sockaddr *a1, const struct addrinfo *addrlis
     return false;
 }
 
-static inline in_addr_t
-addr_host(const struct openvpn_sockaddr *addr)
-{
-    /*
-     * "public" addr returned is checked against ifconfig for
-     * possible clash: non sense for now given
-     * that we do ifconfig only IPv4
-     */
-    if (addr->addr.sa.sa_family != AF_INET)
-    {
-        return 0;
-    }
-    return ntohl(addr->addr.in4.sin_addr.s_addr);
-}
-
-
 static inline bool
 addrlist_port_match(const struct openvpn_sockaddr *a1, const struct addrinfo *a2)
 {
@@ -1051,6 +1048,7 @@ link_socket_read_udp_win32(struct link_socket *sock,
     {
         *from = sock->info.lsa->actual;
         sh.is_handle = true;
+        sh.prepend_sa = sock->sockflags & SF_PREPEND_SA;
     }
     return sockethandle_finalize(sh, &sock->reads, buf, from);
 }
@@ -1099,9 +1097,9 @@ link_socket_read(struct link_socket *sock,
  * Socket Write routines
  */
 
-int link_socket_write_tcp(struct link_socket *sock,
-                          struct buffer *buf,
-                          struct link_socket_actual *to);
+ssize_t link_socket_write_tcp(struct link_socket *sock,
+                              struct buffer *buf,
+                              struct link_socket_actual *to);
 
 #ifdef _WIN32
 
@@ -1121,6 +1119,20 @@ link_socket_write_win32(struct link_socket *sock,
             err = SocketHandleGetLastError(sh);
         }
     }
+
+    /* dco-win mp requires control packets to be prepended with sockaddr */
+    if (sock->sockflags & SF_PREPEND_SA)
+    {
+        if (to->dest.addr.sa.sa_family == AF_INET)
+        {
+            buf_write_prepend(buf, &to->dest.addr.in4, sizeof(struct sockaddr_in));
+        }
+        else
+        {
+            buf_write_prepend(buf, &to->dest.addr.in6, sizeof(struct sockaddr_in6));
+        }
+    }
+
     socket_send_queue(sock, buf, to);
     if (status < 0)
     {
@@ -1135,12 +1147,12 @@ link_socket_write_win32(struct link_socket *sock,
 
 #else  /* ifdef _WIN32 */
 
-size_t link_socket_write_udp_posix_sendmsg(struct link_socket *sock,
-                                           struct buffer *buf,
-                                           struct link_socket_actual *to);
+ssize_t link_socket_write_udp_posix_sendmsg(struct link_socket *sock,
+                                            struct buffer *buf,
+                                            struct link_socket_actual *to);
 
 
-static inline size_t
+static inline ssize_t
 link_socket_write_udp_posix(struct link_socket *sock,
                             struct buffer *buf,
                             struct link_socket_actual *to)
@@ -1158,17 +1170,16 @@ link_socket_write_udp_posix(struct link_socket *sock,
                   (socklen_t) af_addr_size(to->dest.addr.sa.sa_family));
 }
 
-static inline size_t
+static inline ssize_t
 link_socket_write_tcp_posix(struct link_socket *sock,
-                            struct buffer *buf,
-                            struct link_socket_actual *to)
+                            struct buffer *buf)
 {
     return send(sock->sd, BPTR(buf), BLEN(buf), MSG_NOSIGNAL);
 }
 
 #endif /* ifdef _WIN32 */
 
-static inline size_t
+static inline ssize_t
 link_socket_write_udp(struct link_socket *sock,
                       struct buffer *buf,
                       struct link_socket_actual *to)
@@ -1181,7 +1192,7 @@ link_socket_write_udp(struct link_socket *sock,
 }
 
 /* write a TCP or UDP packet to link */
-static inline int
+static inline ssize_t
 link_socket_write(struct link_socket *sock,
                   struct buffer *buf,
                   struct link_socket_actual *to)
@@ -1208,13 +1219,13 @@ link_socket_write(struct link_socket *sock,
  * Extract TOS bits.  Assumes that ipbuf is a valid IPv4 packet.
  */
 static inline void
-link_socket_extract_tos(struct link_socket *ls, const struct buffer *ipbuf)
+link_socket_extract_tos(struct link_socket *sock, const struct buffer *ipbuf)
 {
-    if (ls && ipbuf)
+    if (sock && ipbuf)
     {
         struct openvpn_iphdr *iph = (struct openvpn_iphdr *) BPTR(ipbuf);
-        ls->ptos = iph->tos;
-        ls->ptos_defined = true;
+        sock->ptos = iph->tos;
+        sock->ptos_defined = true;
     }
 }
 
@@ -1223,11 +1234,11 @@ link_socket_extract_tos(struct link_socket *ls, const struct buffer *ipbuf)
  * from tunnel packet.
  */
 static inline void
-link_socket_set_tos(struct link_socket *ls)
+link_socket_set_tos(struct link_socket *sock)
 {
-    if (ls && ls->ptos_defined)
+    if (sock && sock->ptos_defined)
     {
-        setsockopt(ls->sd, IPPROTO_IP, IP_TOS, (const void *)&ls->ptos, sizeof(ls->ptos));
+        setsockopt(sock->sd, IPPROTO_IP, IP_TOS, (const void *)&sock->ptos, sizeof(sock->ptos));
     }
 }
 
@@ -1237,51 +1248,52 @@ link_socket_set_tos(struct link_socket *ls)
  * Socket I/O wait functions
  */
 
-static inline bool
-socket_read_residual(const struct link_socket *s)
-{
-    return s && s->stream_buf.residual_fully_formed;
-}
+/*
+ * Extends the pre-existing read residual logic
+ * to all initialized sockets, ensuring the complete
+ * packet is read.
+ */
+bool sockets_read_residual(const struct context *c);
 
 static inline event_t
-socket_event_handle(const struct link_socket *s)
+socket_event_handle(const struct link_socket *sock)
 {
 #ifdef _WIN32
-    return &s->rw_handle;
+    return &sock->rw_handle;
 #else
-    return s->sd;
+    return sock->sd;
 #endif
 }
 
-event_t socket_listen_event_handle(struct link_socket *s);
+event_t socket_listen_event_handle(struct link_socket *sock);
 
 unsigned int
-socket_set(struct link_socket *s,
+socket_set(struct link_socket *sock,
            struct event_set *es,
            unsigned int rwflags,
            void *arg,
            unsigned int *persistent);
 
 static inline void
-socket_set_listen_persistent(struct link_socket *s,
+socket_set_listen_persistent(struct link_socket *sock,
                              struct event_set *es,
                              void *arg)
 {
-    if (s && !s->listen_persistent_queued)
+    if (sock && !sock->listen_persistent_queued)
     {
-        event_ctl(es, socket_listen_event_handle(s), EVENT_READ, arg);
-        s->listen_persistent_queued = true;
+        event_ctl(es, socket_listen_event_handle(sock), EVENT_READ, arg);
+        sock->listen_persistent_queued = true;
     }
 }
 
 static inline void
-socket_reset_listen_persistent(struct link_socket *s)
+socket_reset_listen_persistent(struct link_socket *sock)
 {
 #ifdef _WIN32
-    reset_net_event_win32(&s->listen_handle, s->sd);
+    reset_net_event_win32(&sock->listen_handle, sock->sd);
 #endif
 }
 
-const char *socket_stat(const struct link_socket *s, unsigned int rwflags, struct gc_arena *gc);
+const char *socket_stat(const struct link_socket *sock, unsigned int rwflags, struct gc_arena *gc);
 
 #endif /* SOCKET_H */

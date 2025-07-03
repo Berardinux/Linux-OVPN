@@ -1,9 +1,9 @@
 /*
  *  Interface to linux dco networking code
  *
- *  Copyright (C) 2020-2024 Antonio Quartulli <a@unstable.cc>
- *  Copyright (C) 2020-2024 Arne Schwabe <arne@rfc2549.org>
- *  Copyright (C) 2020-2024 OpenVPN Inc <sales@openvpn.net>
+ *  Copyright (C) 2020-2025 Antonio Quartulli <a@unstable.cc>
+ *  Copyright (C) 2020-2025 Arne Schwabe <arne@rfc2549.org>
+ *  Copyright (C) 2020-2025 OpenVPN Inc <sales@openvpn.net>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License version 2
@@ -31,9 +31,32 @@
 #include <netlink/socket.h>
 #include <netlink/netlink.h>
 
+/* Defines to avoid mismatching with other platforms */
+#define OVPN_CMD_DEL_PEER OVPN_CMD_PEER_DEL_NTF
+#define OVPN_CMD_SWAP_KEYS OVPN_CMD_KEY_SWAP_NTF
+
 typedef enum ovpn_key_slot dco_key_slot_t;
 typedef enum ovpn_cipher_alg dco_cipher_t;
 
+/* OVPN section */
+
+#ifndef IFLA_OVPN_MAX
+
+enum ovpn_mode {
+    OVPN_MODE_P2P,
+    OVPN_MODE_MP,
+};
+
+enum ovpn_ifla_attrs {
+    IFLA_OVPN_UNSPEC = 0,
+    IFLA_OVPN_MODE,
+
+    __IFLA_OVPN_MAX,
+};
+
+#define IFLA_OVPN_MAX (__IFLA_OVPN_MAX - 1)
+
+#endif /* ifndef IFLA_OVPN_MAX */
 
 typedef struct
 {
@@ -50,6 +73,7 @@ typedef struct
 
     int dco_message_type;
     int dco_message_peer_id;
+    int dco_message_key_id;
     int dco_del_peer_reason;
     uint64_t dco_read_bytes;
     uint64_t dco_write_bytes;

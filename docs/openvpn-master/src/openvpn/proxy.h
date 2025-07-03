@@ -5,7 +5,7 @@
  *             packet encryption, packet authentication, and
  *             packet compression.
  *
- *  Copyright (C) 2002-2024 OpenVPN Inc <sales@openvpn.net>
+ *  Copyright (C) 2002-2025 OpenVPN Inc <sales@openvpn.net>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License version 2
@@ -31,7 +31,7 @@
 #define HTTP_AUTH_NONE   0
 #define HTTP_AUTH_BASIC  1
 #define HTTP_AUTH_DIGEST 2
-#define HTTP_AUTH_NTLM   3
+/* #define HTTP_AUTH_NTLM   3 removed in OpenVPN 2.7 */
 #define HTTP_AUTH_NTLM2  4
 #define HTTP_AUTH_N      5 /* number of HTTP_AUTH methods */
 
@@ -59,12 +59,6 @@ struct http_proxy_options {
     bool inline_creds; /* auth_file_up is inline credentials */
     bool first_time; /* indicates if we need to wipe user creds at the first iteration of the main loop */
     bool nocache;
-};
-
-struct http_proxy_options_simple {
-    const char *server;
-    const char *port;
-    int auth_retry;
 };
 
 struct http_proxy_info {
