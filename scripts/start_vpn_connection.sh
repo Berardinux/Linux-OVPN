@@ -2,7 +2,8 @@
 
 VPN_CONFIG="$1"
 STATUS_PATH="$2"
-PASSWORD="$3"
+USERNAME="$3"
+PASSWORD="$4"
 
 OPENVPN_BIN="/opt/LinuxOVPN/docs/openvpn-local/sbin/openvpn"
 
@@ -31,9 +32,17 @@ fi
 OPENVPN_PID=$!
 echo "$OPENVPN_PID" > /tmp/openvpn.pid
 
+echo "Waiting for $STATUS_PATH to exist..."
+
+while [ ! -f "$STATUS_PATH" ]; do
+    sleep 1
+done
+
+chmod 777 "$STATUS_PATH"
+chown "$USERNAME:root" "$STATUS_PATH"
+echo "Permissions changed on $STATUS_PATH"
+
 wait $OPENVPN_PID
 
-if [ -f "$STATUS_PATH" ]; then
-    chmod 777 "$STATUS_PATH"
-fi
+
 

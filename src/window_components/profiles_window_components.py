@@ -1,11 +1,13 @@
 import gi
 import os
+
+from window_components import graph_widget
 gi.require_version("Gtk", "3.0")
-from gi.repository import Gtk, Gdk
+from gi.repository import Gtk, Gdk, GLib
 from gi.repository import GdkPixbuf
 from datetime import datetime
 import subprocess
-import tempfile
+import getpass
 from read_write_json import ReadWriteJSON
 from window_components.graph_widget import VPNGraphWidget
 
@@ -122,6 +124,35 @@ class ProfilesWindowUIComponents:
         for child in self.body_box.get_children():
             self.body_box.remove(child)
 
+        vpn_config = {}
+
+        with open(self.vpn_path, "r") as f:
+            for line in f:
+                line = line.strip()
+                if not line or line.startswith("#"):
+                    continue
+
+                parts = line.split(None, 1)
+                if len(parts) == 2:
+                    key, value = parts
+                    vpn_config[key] = value
+                else:
+                    vpn_config[parts[0]] = ""
+
+        proto = vpn_config.get("proto", "unknown")
+        remote = vpn_config.get("remote", "unknown")
+
+        if remote != "unknown":
+            remote_parts = remote.split()
+            if len(remote_parts) == 2:
+                server, port = remote_parts
+            elif len(remote_parts) == 1:
+                server, port = remote_parts[0], "unknown"
+            else:
+                server, port = "unknown", "unknown"
+        else:
+            server, port = "unknown", "unknown"
+
         self.connected_body_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10)
         self.connected_body_box.set_name("custom-body")
 
@@ -156,17 +187,163 @@ class ProfilesWindowUIComponents:
         row.pack_start(spacer, False, False, 0)
         self.connected_body_box.pack_start(row, False, False, 0)
 
-        graph_widget = VPNGraphWidget()
+        graph_widget = VPNGraphWidget(self.status_path)
+        graph_widget.set_size_request(-1, 450)
         self.connected_body_box.pack_start(graph_widget, True, True, 0)
+
+        bits_in_label = Gtk.Label(label="BITS IN ⬇️")
+        bits_in_label.get_style_context().add_class("h6")
+        bits_in_label.get_style_context().add_class("color1")
+        bits_in_label.set_halign(Gtk.Align.START)
+        self.connected_body_box.pack_start(bits_in_label, False, False, 0)
+
+        bits_in_value_label = Gtk.Label()
+        bits_in_value_label.get_style_context().add_class("h6")
+        bits_in_value_label.get_style_context().add_class("color0")
+        bits_in_value_label.set_halign(Gtk.Align.START)
+        self.connected_body_box.pack_start(bits_in_value_label, False, False, 0)
+
+        v_spacer = Gtk.Label(label="")
+        self.connected_body_box.pack_start(v_spacer, False, False, 0)
+
+        bits_out_label = Gtk.Label(label="BITS OUT ⬆️")
+        bits_out_label.get_style_context().add_class("h6")
+        bits_out_label.get_style_context().add_class("color1")
+        bits_out_label.set_halign(Gtk.Align.START)
+        self.connected_body_box.pack_start(bits_out_label, False, False, 0)
+
+        bits_out_value_label = Gtk.Label()
+        bits_out_value_label.get_style_context().add_class("h6")
+        bits_out_value_label.get_style_context().add_class("color0")
+        bits_out_value_label.set_halign(Gtk.Align.START)
+        self.connected_body_box.pack_start(bits_out_value_label, False, False, 0)
+
+        v_spacer = Gtk.Label(label="")
+        self.connected_body_box.pack_start(v_spacer, False, False, 0)
+
+        duration_and_packet_received_label = Gtk.Label(label="DURATION")
+        duration_and_packet_received_label.get_style_context().add_class("h6")
+        duration_and_packet_received_label.get_style_context().add_class("color1")
+        duration_and_packet_received_label.set_halign(Gtk.Align.START)
+        self.connected_body_box.pack_start(duration_and_packet_received_label, False, False, 0)
+
+        duration_value_label = Gtk.Label()
+        duration_value_label.get_style_context().add_class("h6")
+        duration_value_label.get_style_context().add_class("color0")
+        duration_value_label.set_halign(Gtk.Align.START)
+        self.connected_body_box.pack_start(duration_value_label, False, False, 0)
+
+        v_spacer = Gtk.Label(label="")
+        self.connected_body_box.pack_start(v_spacer, False, False, 0)
+
+        packet_received_label = Gtk.Label(label="PACKET RECEIVED")
+        packet_received_label.get_style_context().add_class("h6")
+        packet_received_label.get_style_context().add_class("color1")
+        packet_received_label.set_halign(Gtk.Align.START)
+        self.connected_body_box.pack_start(packet_received_label, False, False, 0)
+
+        packet_received_value_label = Gtk.Label()
+        packet_received_value_label.get_style_context().add_class("h6")
+        packet_received_value_label.get_style_context().add_class("color0")
+        packet_received_value_label.set_halign(Gtk.Align.START)
+        self.connected_body_box.pack_start(packet_received_value_label, False, False, 0)
+
+        v_spacer = Gtk.Label(label="")
+        self.connected_body_box.pack_start(v_spacer, False, False, 0)
+
+        server_public_ip_label = Gtk.Label(label="SERVER PUBLIC IP")
+        server_public_ip_label.get_style_context().add_class("h6")
+        server_public_ip_label.get_style_context().add_class("color1")
+        server_public_ip_label.set_halign(Gtk.Align.START)
+        self.connected_body_box.pack_start(server_public_ip_label, False, False, 0)
+
+        server_public_ip_value_label = Gtk.Label(label=f"{server}")
+        server_public_ip_value_label.get_style_context().add_class("h6")
+        server_public_ip_value_label.get_style_context().add_class("color0")
+        server_public_ip_value_label.set_halign(Gtk.Align.START)
+        self.connected_body_box.pack_start(server_public_ip_value_label, False, False, 0)
+
+        v_spacer = Gtk.Label(label="")
+        self.connected_body_box.pack_start(v_spacer, False, False, 0)
+
+        port_and_vpn_protocol_label = Gtk.Label(
+                label="PORT                                       VPN PROTOCOL"
+                )
+        port_and_vpn_protocol_label.get_style_context().add_class("h6")
+        port_and_vpn_protocol_label.get_style_context().add_class("color1")
+        port_and_vpn_protocol_label.set_halign(Gtk.Align.START)
+        self.connected_body_box.pack_start(port_and_vpn_protocol_label, False, False, 0)
+
+        port_and_vpn_protocol_value_label = Gtk.Label(
+                label=f"{port}                                           {proto}"
+                )
+        port_and_vpn_protocol_value_label.get_style_context().add_class("h6")
+        port_and_vpn_protocol_value_label.get_style_context().add_class("color0")
+        port_and_vpn_protocol_value_label.set_halign(Gtk.Align.START)
+        self.connected_body_box.pack_start(port_and_vpn_protocol_value_label, False, False, 0)
 
         scrolled_window = Gtk.ScrolledWindow()
         scrolled_window.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
         scrolled_window.set_propagate_natural_height(False)
+        scrolled_window.set_hexpand(True)
         scrolled_window.set_vexpand(True)
-        scrolled_window.add(self.connected_body_box)
+        viewport = Gtk.Viewport()
+        viewport.add(self.connected_body_box)
+        scrolled_window.add(viewport)
 
         self.body_box.pack_start(scrolled_window, True, True, 0)
         self.body_box.show_all()
+        
+        elapsed_seconds = 0
+
+
+        elapsed_seconds = 0
+
+        def update_labels():
+            nonlocal elapsed_seconds
+            elapsed_seconds += 1
+        
+            hours, remainder = divmod(elapsed_seconds, 3600)
+            minutes, seconds = divmod(remainder, 60)
+            duration_str = f"{hours:02}:{minutes:02}:{seconds:02}"
+            duration_value_label.set_text(duration_str)
+        
+            bits_in_value_label.set_text(
+                f"{graph_widget.last_download_mbps:.2f} Mbps"
+            )
+            bits_out_value_label.set_text(
+                f"{graph_widget.last_upload_mbps:.2f} Mbps"
+            )
+        
+            bytes_received = 0
+            try:
+                with open(self.status_path) as f:
+                    for line in f:
+                        line = line.strip()
+                        if line.startswith("TUN/TAP read bytes"):
+                            parts = line.split(",")
+                            if len(parts) == 2:
+                                bytes_received = int(parts[1])
+                                break
+            except FileNotFoundError:
+                packet_received_value_label.set_text("VPN stopped")
+                if hasattr(self, "update_bits_timeout_id") and self.update_bits_timeout_id:
+                    GLib.source_remove(self.update_bits_timeout_id)
+                    self.update_bits_timeout_id = None
+                    print("Stopped update_labels timer because VPN stopped.")
+                return False  # stop the timer
+            except Exception as e:
+                print(f"Error reading status file: {e}")
+                return True
+        
+            if bytes_received == 0:
+                packet_received_value_label.set_text("waiting...")
+            else:
+                packet_received_value_label.set_text(f"{bytes_received:,} bytes")
+        
+            return True
+
+        self.update_bits_timeout_id = GLib.timeout_add(1000, update_labels)
 
     def on_edit_profile_button_click(self, button, profile_name, profile_data, edit_profile_button_clicked):
         print("Edit button clicked { ")
@@ -182,12 +359,10 @@ class ProfilesWindowUIComponents:
         self.create_profiles_body_box(self.edit_profile_button_clicked)
         self.body_box.show_all()
 
-# <div>
-
     def on_profile_button_click(self, switch, state, profile_name, profile_data):
         print(">>> on_profile_button_click called with state =", state)
         timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
-        status_path = f"/tmp/openvpn-status-{profile_name}-{timestamp}.log"
+        self.status_path = f"/tmp/openvpn-status-{profile_name}-{timestamp}.log"
 
         if self.turn_off_vpn_cancel:
             self.turn_off_vpn_cancel = False
@@ -198,18 +373,18 @@ class ProfilesWindowUIComponents:
             used_passwd = profile_data.get("used_passwd")
             passwd = profile_data.get("passwd")
             filename = profile_data.get("filename")
-            vpn_path = os.path.join(
+            self.vpn_path = os.path.join(
                 "/opt/LinuxOVPN/docs/user_ovpn_files", filename
             )
    
-            temp_pass_file = None
-
             try:
+                username = getpass.getuser()
                 script_path = "../scripts/start_vpn_connection.sh"
-                script_args = ["pkexec", script_path, vpn_path, status_path]
+                script_args = ["pkexec", script_path, self.vpn_path, self.status_path, username]
 
-                if used_passwd:
-                    script_args.append(passwd)
+                if not used_passwd:
+                    passwd=""
+                script_args.append(passwd)
 
                 process = subprocess.Popen(
                         script_args,
@@ -303,8 +478,6 @@ class ProfilesWindowUIComponents:
             self.body_box.show_all()
 
             return True
-
-# </div>
 
     def create_profiles_footer_box(self, callback):
         self.footer_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
