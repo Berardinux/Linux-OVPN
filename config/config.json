@@ -1,4 +1,11 @@
 {
     "theme": "dark",
-    "profiles": {}
+    "profiles": {
+        "Berardinux": {
+            "host": "berardinux.com",
+            "used_passwd": true,
+            "passwd": "m\u00ffT\u00dfA}4:\u00f5\\\u00a6T\u00ae\u00d2G\u00d6\u00f4\u00a94\u00b2\u00ed\u00a1\u00c1\u00bd\u00f1z\u00e8\\B;W&",
+            "filename": "Berardinux.ovpn"
+        }
+    }
 }

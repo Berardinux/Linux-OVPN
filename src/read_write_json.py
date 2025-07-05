@@ -87,4 +87,35 @@ class ReadWriteJSON:
         else:
             print(f"Profile '{profile_name}' does not exist.")
 
+    def get_statistics_path(self):
+        statistics_path = os.path.join(
+                os.path.dirname(__file__),
+                "..", "config", "statistics.json"
+                )
+        return statistics_path
+
+    def read_statistics(self):
+        stats_path = self.get_statistics_path()
+        if not os.path.exists(stats_path):
+            empty_stats = {
+                    "tun_bytes_in": 0,
+                    "tun_bytes_out": 0,
+                    "tcp_bytes_in": 0,
+                    "tcp_bytes_out": 0,
+                    "tun_packets_in": 0,
+                    "tun_packets_out": 0
+                    }
+
+            with open(stats_path, "w") as f:
+                json.dump(empty_stats, f, indent=4)
+            return empty_stats
+
+        with open(stats_path, "r") as f:
+            return json.load(f)
+
+    def write_statistics(self, stats):
+        stats_path = self.get_statistics_path()
+        with open(stats_path, "w") as f:
+            json.dump(stats, f, indent=4)
+
 
