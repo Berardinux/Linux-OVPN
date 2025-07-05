@@ -8,6 +8,8 @@ from gi.repository import GdkPixbuf
 from datetime import datetime
 import subprocess
 import getpass
+import threading
+import time
 from read_write_json import ReadWriteJSON
 from window_components.graph_widget import VPNGraphWidget
 
@@ -21,6 +23,9 @@ class ProfilesWindowUIComponents:
         self.config=ReadWriteJSON().read_config()
         self.theme = self.config.get("theme", "light")
         self.turn_off_vpn_cancel = False
+        self.keep_running_statistics = True
+        self.stats_thread = None
+        self.profile_switch = {}
 
     def create_profiles_header_box(self, hamburger_button_clicked, list_button_clicked):
         self.header_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
@@ -60,6 +65,7 @@ class ProfilesWindowUIComponents:
         return self.header_box
 
     def create_profiles_body_box(self, edit_profile_button_clicked):
+        self.profile_switch.clear()
         self.edit_profile_button_clicked = edit_profile_button_clicked
     
         if not self.body_box:
@@ -96,6 +102,7 @@ class ProfilesWindowUIComponents:
             vpn_profile_switch.set_name(profile_name)
             vpn_profile_switch.set_size_request(70, -1)
             vpn_profile_switch.connect("state-set", self.on_profile_button_click, profile_name, profile_data)
+            self.profile_switch[profile_name] = vpn_profile_switch
     
             profile_name_label = Gtk.Label(label=profile_name)
             profile_name_label.get_style_context().add_class("h5")
@@ -345,6 +352,71 @@ class ProfilesWindowUIComponents:
 
         self.update_bits_timeout_id = GLib.timeout_add(1000, update_labels)
 
+    def _stats_worker(self):
+        while self.keep_running_statistics:
+            keep_going = self.update_statistics_file()
+            if not keep_going:
+                break
+            time.sleep(1)
+
+    def update_statistics_file(self):
+        tun_bytes_in = 0
+        tun_bytes_out = 0
+        tcp_bytes_in = 0
+        tcp_bytes_out = 0
+        tun_packets_in = 0
+        tun_packets_out = 0
+    
+        if not os.path.exists(self.status_path):
+            print("[DEBUG] VPN is off. Keeping previous statistics.json unchanged.")
+            return False
+
+        time.sleep(1)
+    
+        try:
+            with open(self.status_path) as f:
+                for line in f:
+                    line = line.strip()
+                    if line.startswith("TUN/TAP read bytes"):
+                        parts = line.split(",")
+                        if len(parts) == 2:
+                            tun_bytes_in = int(parts[1])
+                    elif line.startswith("TUN/TAP write bytes"):
+                        parts = line.split(",")
+                        if len(parts) == 2:
+                            tun_bytes_out = int(parts[1])
+                    elif line.startswith("TCP/UDP read bytes"):
+                        parts = line.split(",")
+                        if len(parts) == 2:
+                            tcp_bytes_in = int(parts[1])
+                    elif line.startswith("TCP/UDP write bytes"):
+                        parts = line.split(",")
+                        if len(parts) == 2:
+                            tcp_bytes_out = int(parts[1])
+                    elif line.startswith("TUN/TAP read packets"):
+                        parts = line.split(",")
+                        if len(parts) == 2:
+                            tun_packets_in = int(parts[1])
+                    elif line.startswith("TUN/TAP write packets"):
+                        parts = line.split(",")
+                        if len(parts) == 2:
+                            tun_packets_out = int(parts[1])
+        except Exception as e:
+            print(f"Error reading status file: {e}")
+            return True
+    
+        rw_json = ReadWriteJSON()
+        stats = {
+            "tun_bytes_in": tun_bytes_in,
+            "tun_bytes_out": tun_bytes_out,
+            "tcp_bytes_in": tcp_bytes_in,
+            "tcp_bytes_out": tcp_bytes_out,
+            "tun_packets_in": tun_packets_in,
+            "tun_packets_out": tun_packets_out,
+        }
+        rw_json.write_statistics(stats)
+        return True
+
     def on_edit_profile_button_click(self, button, profile_name, profile_data, edit_profile_button_clicked):
         print("Edit button clicked { ")
         print("Profile name: " + profile_name)
@@ -423,6 +495,11 @@ class ProfilesWindowUIComponents:
                     self.body_box.remove(child)
                 self.refresh_connected_view(profile_name, profile_data)
 
+                if self.stats_thread is None or not self.stats_thread.is_alive():
+                    self.keep_running_statistics = True
+                    self.stats_thread = threading.Thread(target=self._stats_worker, daemon=True)
+                    self.stats_thread.start()
+
                 return True
     
             except Exception as e:
@@ -432,6 +509,11 @@ class ProfilesWindowUIComponents:
 
         else:
             print("Switch is off")
+            self.keep_running_statistics = False
+
+            if getattr(self, "stats_thread", None) is not None and self.stats_thread.is_alive():
+                self.stats_thread.join(timeout=2)
+                self.stats_thread = None
         
             if hasattr(self, "vpn_process") and self.vpn_process:
                 bash_pid = str(self.vpn_process.pid)

@@ -70,15 +70,15 @@ class InitWindows:
         self.overlay, self.stack = self.win_ui.create_window()
 
     def init_profiles_window(self):
-        pro_ui = ProfilesWindowUIComponents()
-        header_box = pro_ui.create_profiles_header_box(
-                hamburger_button_clicked=pro_ui.open_sidebar, 
+        self.pro_ui = ProfilesWindowUIComponents()
+        header_box = self.pro_ui.create_profiles_header_box(
+                hamburger_button_clicked=self.pro_ui.open_sidebar, 
                 list_button_clicked=self.callback.logs_window
                 )
-        body_box = pro_ui.create_profiles_body_box(
+        body_box = self.pro_ui.create_profiles_body_box(
                 edit_profile_button_clicked=self.callback.edit_profile_window
                 )
-        footer_box = pro_ui.create_profiles_footer_box(callback=self.callback.import_profile_window)
+        footer_box = self.pro_ui.create_profiles_footer_box(callback=self.callback.import_profile_window)
         profiles_view = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         profiles_view.pack_start(header_box, False, False, 0)
         profiles_view.pack_start(body_box, True, True, 0)
@@ -106,7 +106,7 @@ class InitWindows:
         self.stack.add_named(profiles_overlay, "profiles")
 
         self.stack.set_visible_child_name("profiles")
-        pro_ui.create_sidebar(
+        self.pro_ui.create_sidebar(
                 self.overlay,
                 import_profile_callback=self.callback.import_profile_window,
                 proxies_callback=self.callback.proxies_window,
@@ -118,6 +118,7 @@ class InitWindows:
     def update_edit_profile_data(self, profile_name, profile_data):
         if hasattr(self, 'edpr_ui'):
             self.edpr_ui.set_profile_data(profile_name, profile_data)
+            self.edpr_ui.profiles_window_ui = self.pro_ui
 
     def init_statistics_window(self):
         sta_ui = StatisticsWindowUIComponents()
@@ -126,7 +127,10 @@ class InitWindows:
         statistics_view = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         statistics_view.pack_start(statistics_header_box, False, False, 0)
         statistics_view.pack_start(statistics_body_box, True, True, 0)
+        sta_ui.update_labels()
+        sta_ui.start_updating()
         self.stack.add_named(statistics_view, "statistics")
+        self.sta_ui = sta_ui
 
     def init_settings_window(self):
         set_ui = SettingsWindowUIComponents()
@@ -221,6 +225,7 @@ class InitWindows:
                 callback=self.callback.profiles_window,
                 save_profile_callback=self.reload_profiles_window
                 )
+        self.edpr_ui.go_back_callback = self.callback.profiles_window
         edit_profile_body_box = self.edpr_ui.create_edit_profile_body_box()
         edit_profile_footer_box = self.edpr_ui.create_edit_profile_footer_box(callback=self.reload_profiles_window)
         edit_profile_view = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)

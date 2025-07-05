@@ -20,6 +20,7 @@ class EditProfileWindowUIComponents:
         self.used_passwd = ""
         self.passwd = ""
         self.filename = ""
+        self.profile_window_ui = None
 
     def create_edit_profile_header_box(self, callback, save_profile_callback):
         self.header_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
@@ -229,7 +230,23 @@ class EditProfileWindowUIComponents:
         ReadWriteJSON().delete_profile_from_config(self.old_profile_name)
         self.delete_profile_callback()
 
+
     def on_connect_btn_click(self, button):
+        if hasattr(self, "go_back_callback") and self.go_back_callback:
+            self.go_back_callback()
+        else:
+            print("No go_back_callback set; cannot switch view.")
+    
+        if self.profiles_window_ui:
+            switch = self.profiles_window_ui.profile_switch.get(self.old_profile_name)
+            if switch:
+                if not switch.get_active():
+                    switch.set_active(True)
+                else:
+                    print(f"VPN already connected for profile: {self.old_profile_name}")
+            else:
+                print(f"No switch found for profile: {self.old_profile_name}")
+        else:
+            print("profiles_window_ui reference is not set")
+    
         print("connect clicked")
-
-
