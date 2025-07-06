@@ -28,7 +28,6 @@ class MainGUI:
 
         self.init.init_logs_window()
         self.init.init_edit_profile_window()
-        self.init.init_imported_profile_window()
         self.init.init_import_profile_window()
         self.init.init_add_proxy_window()
         self.init.init_proxies_window()
@@ -37,6 +36,7 @@ class MainGUI:
         self.init.init_statistics_window()
         self.init.init_profiles_window()
         self.profiles_window()
+        self.init.init_imported_profile_window()
 
     def profiles_window(self, button=None):
         self.win_ui.win.show_all()

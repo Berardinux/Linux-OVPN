@@ -1,8 +1,8 @@
 {
-    "tun_bytes_in": 846,
-    "tun_bytes_out": 1061,
-    "tcp_bytes_in": 3902,
-    "tcp_bytes_out": 3588,
+    "tun_bytes_in": 250,
+    "tun_bytes_out": 135,
+    "tcp_bytes_in": 2914,
+    "tcp_bytes_out": 2792,
     "tun_packets_in": 0,
     "tun_packets_out": 0
 }
