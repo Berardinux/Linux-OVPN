@@ -4,6 +4,7 @@ gi.require_version("Gtk", "3.0")
 from gi.repository import Gtk, Gdk
 
 from load_css import LoadCSS
+from read_write_json import ReadWriteJSON
 from window_components.profiles_window_components import ProfilesWindowUIComponents
 from window_components.statistics_window_components import StatisticsWindowUIComponents
 from window_components.settings_window_components import SettingsWindowUIComponents
@@ -196,16 +197,38 @@ class InitWindows:
 
     def init_imported_profile_window(self):
         self.imped_ui = ImportedProfileWindowUIComponents()
+        self.imped_ui.win_ui = self.win_ui
+        self.imped_ui.init = self
+        self.imped_ui.profiles_window_ui = self.pro_ui
         imported_profile_header_box = self.imped_ui.create_imported_profile_header_box(callback=self.callback.import_profile_window)
         imported_profile_body_box = self.imped_ui.create_imported_profile_body_box(
                 name_without_ext="", remote_host=""
                 )
         imported_profile_footer_box = self.imped_ui.create_imported_profile_footer_box(callback=self.reload_profiles_window)
+        self.imped_ui.go_back_callback = self.callback.profiles_window
         imported_profile_view = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         imported_profile_view.pack_start(imported_profile_header_box, False, False, 0)
         imported_profile_view.pack_start(imported_profile_body_box, True, True, 0)
         imported_profile_view.pack_start(imported_profile_footer_box, False, False, 0)
         self.stack.add_named(imported_profile_view, "imported_profile")
+
+    def activate_profile_switch(self, profile_name):
+        if not hasattr(self, "pro_ui"):
+            print("[window_components] No pro_ui available.")
+            return
+    
+        switches = self.pro_ui.profile_switch
+        print("Switches after reload:", list(switches.keys()))
+    
+        switch = switches.get(profile_name)
+        if switch:
+            if not switch.get_active():
+                print(f"[window_components] Toggling switch for {profile_name}")
+                switch.set_active(True)
+            else:
+                print(f"[window_components] VPN already active for {profile_name}")
+        else:
+            print(f"[window_components] No switch found for {profile_name}")
 
     def update_imported_profile_data(self, filename, profile_name, remote_host):
         if hasattr(self, 'imped_ui'):

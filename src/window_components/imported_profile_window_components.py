@@ -1,7 +1,7 @@
 import gi
 import os
 gi.require_version("Gtk", "3.0")
-from gi.repository import Gtk, Gdk
+from gi.repository import Gtk, Gdk, GLib
 from gi.repository import GdkPixbuf
 from read_write_json import ReadWriteJSON
 
@@ -126,7 +126,6 @@ class ImportedProfileWindowUIComponents:
 
     def on_passwd_changed(self, entry):
         self.passwd = entry.get_text()
-        print("Passwd changed to: " + self.passwd)
 
     def set_profile_data(self, filename, profile_name, remote_host):
         if hasattr(self, 'entry_profile_name'):
@@ -191,5 +190,27 @@ class ImportedProfileWindowUIComponents:
         self.imported_callback()
 
     def on_connect_btn_click(self, button):
-        ReadWriteJSON().add_profile_to_config(self.profile_name, self.remote_host, self.used_passwd, self.passwd, self.filename)
+        new_profile_name = self.entry_profile_name.get_text().strip()[:16]
+    
+        ReadWriteJSON().add_profile_to_config(
+            new_profile_name,
+            self.remote_host,
+            self.used_passwd,
+            self.passwd,
+            self.filename
+        )
+    
         self.imported_callback()
+    
+        def activate_switch():
+            if hasattr(self, "init"):
+                init = self.init
+                if hasattr(init, "activate_profile_switch"):
+                    init.activate_profile_switch(new_profile_name)
+                else:
+                    print("[imported_profile] InitWindows has no activate_profile_switch method.")
+            else:
+                print("[imported_profile] Cannot access InitWindows for switch activation.")
+            return False
+    
+        GLib.idle_add(activate_switch)

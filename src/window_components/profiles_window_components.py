@@ -303,9 +303,6 @@ class ProfilesWindowUIComponents:
         
         elapsed_seconds = 0
 
-
-        elapsed_seconds = 0
-
         def update_labels():
             nonlocal elapsed_seconds
             elapsed_seconds += 1
