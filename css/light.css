@@ -103,6 +103,16 @@
     box-shadow: none;
 }
 
+.btn0 {
+    background: #d4792d;
+    color: white;
+}
+
+.btn0:hover {
+    background: #b45d1e;
+    color: white;
+}
+
 .drop-area {
     border: 2px dashed #2b6cb0;
     border-radius: 8px;

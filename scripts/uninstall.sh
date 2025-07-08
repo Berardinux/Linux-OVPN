@@ -5,14 +5,27 @@ if [ "$(id -u)" -ne 0 ]; then
     exit 1
 fi
 
-current_user=${SUDO_USER:-root}
-
 echo "Uninstalling LinuxOVPN..."
 
-# Remove application files
-rm -rf /opt/LinuxOVPN
+cd / || exit 1
 
-rm -f "/home/$current_user/.local/share/applications/LinuxOVPN.desktop"
+# Remove application files
+if [ -d /opt/LinuxOVPN ]; then
+    rm -rf /opt/LinuxOVPN
+    echo "/opt/LinuxOVPN removed."
+else
+    echo "/opt/LinuxOVPN not found."
+fi
+
+# Remove system-wide .desktop file
+desktop_file="/usr/share/applications/LinuxOVPN.desktop"
+
+if [ -f "$desktop_file" ]; then
+    rm -f "$desktop_file"
+    echo "$desktop_file removed."
+else
+    echo "$desktop_file not found."
+fi
 
 echo "LinuxOVPN application files removed."
 
@@ -38,7 +51,7 @@ echo "Removing LinuxOVPN build dependencies..."
 
 case "$pkg_manager" in
     apt)
-        sudo apt remove --purge -y \
+        apt remove --purge -y \
             libssl-dev \
             liblzo2-dev \
             liblz4-dev \
@@ -49,10 +62,10 @@ case "$pkg_manager" in
             libnl-genl-3-dev \
             libcap-ng-dev \
             python3-docutils
-        sudo apt autoremove -y
+        apt autoremove -y
         ;;
     dnf)
-        sudo dnf remove -y \
+        dnf remove -y \
             openssl-devel \
             lzo-devel \
             lz4-devel \
@@ -63,7 +76,7 @@ case "$pkg_manager" in
             python3-docutils
         ;;
     yum)
-        sudo yum remove -y \
+        yum remove -y \
             openssl-devel \
             lzo-devel \
             lz4-devel \
@@ -74,7 +87,7 @@ case "$pkg_manager" in
             python3-docutils
         ;;
     pacman)
-        sudo pacman -Rs --noconfirm \
+        pacman -Rs --noconfirm \
             openssl \
             lzo \
             lz4 \
@@ -85,7 +98,7 @@ case "$pkg_manager" in
             python-docutils
         ;;
     apk)
-        sudo apk del \
+        apk del \
             openssl-dev \
             lzo-dev \
             lz4-dev \
@@ -95,7 +108,7 @@ case "$pkg_manager" in
             py3-docutils
         ;;
     zypper)
-        sudo zypper rm -y \
+        zypper rm -y \
             libopenssl-devel \
             lzo-devel \
             lz4-devel \
@@ -109,3 +122,4 @@ esac
 
 echo "LinuxOVPN uninstallation complete!"
 
+pkill -9 -f LinuxOVPN

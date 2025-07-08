@@ -1,11 +1,11 @@
 import gi
 import os
 gi.require_version("Gtk", "3.0")
-from gi.repository import Gtk, Gdk
+from gi.repository import Gtk, Gdk, GLib
 from gi.repository import GdkPixbuf
+import subprocess
 from read_write_json import ReadWriteJSON
 from load_css import ThemeManager
-from gi.repository import GLib
 
 class SettingsWindowUIComponents:
     def __init__(self):
@@ -93,9 +93,43 @@ class SettingsWindowUIComponents:
         container.pack_start(theme_button_box, False, False, 0)
         # }
 
+        v_spacer = Gtk.Label(label="")
+        container.pack_start(v_spacer, False, False, 0)
+
+        uninstall_title = Gtk.Label(label="Uninstall LinuxOVPN")
+        uninstall_title.get_style_context().add_class("h5")
+        uninstall_title.get_style_context().add_class("color3")
+        uninstall_title.set_halign(Gtk.Align.START)
+        container.pack_start(uninstall_title, False, False, 0)
+
+        uninstall_label = Gtk.Label(
+                label="Click here to uninstall LinuxOVPN and its dependencies."
+                )
+        uninstall_label.get_style_context().add_class("h6")
+        uninstall_label.get_style_context().add_class("color0")
+        uninstall_label.set_halign(Gtk.Align.START)
+        uninstall_label.set_valign(Gtk.Align.START)
+        container.pack_start(uninstall_label, False, False, 0)
+
+        uninstall_button = Gtk.Button(label="UNINSTALL LINUX-OVPN")
+        uninstall_button.get_style_context().add_class("btn0")
+        uninstall_button.set_margin_right(300)
+        uninstall_button.connect("clicked", self.on_uninstall_clicked)
+        container.pack_start(uninstall_button, False, False, 0)
+
+
         scroll.add(container)
         self.body_box = scroll
         return self.body_box
+
+    def on_uninstall_clicked(self, button):
+        try:
+            subprocess.run(
+                    ["pkexec", "../scripts/uninstall.sh"],
+                    check=True
+                    )
+        except subprocess.CalledProcessError as e:
+            print("Uninstall script failed:", e)
 
     def on_theme_clicked(self, button, theme_value, callback):
         print(f"Theme selected: {theme_value}")

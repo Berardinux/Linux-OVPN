@@ -66,24 +66,26 @@ fi
 if [ -z "$app" ] || [ "$app" = Y ] || [ "$app" = y ]; then
     sudo mkdir -p /opt/LinuxOVPN
     sudo cp -r config css docs images scripts src /opt/LinuxOVPN
-    touch "/home/$current_user/.local/share/applications/LinuxOVPN.desktop"
     sudo chown -R $current_user:$current_user /opt/LinuxOVPN
     sudo chmod -R 755 /opt/LinuxOVPN/
     sudo chmod -R 777 /opt/LinuxOVPN/docs
     sudo chmod -R 777 /opt/LinuxOVPN/config
-    chmod 644 "/home/$current_user/.local/share/applications/LinuxOVPN.desktop"
-    
-    cat << EOM | sudo tee "/home/$current_user/.local/share/applications/LinuxOVPN.desktop" >/dev/null
+
+    # Create system-wide desktop entry
+    sudo tee /usr/share/applications/LinuxOVPN.desktop >/dev/null << EOM
 [Desktop Entry]
 Type=Application
 Name=LinuxOVPN
 Comment=Linux OpenVPN Connect
 Icon=/opt/LinuxOVPN/images/linuxovpn.png
-Exec=pkexec python3 LinuxOVPN
+Exec=python3 /opt/LinuxOVPN/src/LinuxOVPN
 Path=/opt/LinuxOVPN/src
 Terminal=false
+Categories=Network;
 EOM
-    
+
+    sudo chmod 644 /usr/share/applications/LinuxOVPN.desktop
+
     echo "###### LinuxOVPN Installation complete! ######"
 fi
 
