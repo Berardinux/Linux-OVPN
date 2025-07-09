@@ -43,6 +43,3 @@ chown "$USERNAME:root" "$STATUS_PATH"
 echo "Permissions changed on $STATUS_PATH"
 
 wait $OPENVPN_PID
-
-
-
