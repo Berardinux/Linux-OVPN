@@ -135,9 +135,11 @@ class EditProfileWindowUIComponents:
         print("Profile name changed to: " + self.new_profile_name)
 
     def on_passwd_changed(self, entry):
-        self.passwd = entry.get_text()
-        print("Passwd changed to: " + self.passwd)
-        self.password_changed = 1
+        text = entry.get_text()
+        if "•" not in text:
+            self.passwd = entry.get_text()
+            print("Passwd changed to: " + self.passwd)
+            self.password_changed = 1
 
 
     def set_profile_data(self, profile_name, profile_data):

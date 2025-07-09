@@ -196,6 +196,7 @@ class ProfilesWindowUIComponents:
 
         graph_widget = VPNGraphWidget(self.status_path)
         graph_widget.set_size_request(-1, 450)
+        graph_widget.set_margin_right(10)
         self.connected_body_box.pack_start(graph_widget, True, True, 0)
 
         bits_in_label = Gtk.Label(label="BITS IN ⬇️")
@@ -335,10 +336,11 @@ class ProfilesWindowUIComponents:
                     GLib.source_remove(self.update_bits_timeout_id)
                     self.update_bits_timeout_id = None
                     print("Stopped update_labels timer because VPN stopped.")
-                return False  # stop the timer
+                self.status_path = None
+                return False
             except Exception as e:
                 print(f"Error reading status file: {e}")
-                return True
+                return False
         
             if bytes_received == 0:
                 packet_received_value_label.set_text("waiting...")
@@ -346,7 +348,7 @@ class ProfilesWindowUIComponents:
                 packet_received_value_label.set_text(f"{bytes_received:,} bytes")
         
             return True
-
+        
         self.update_bits_timeout_id = GLib.timeout_add(1000, update_labels)
 
     def _stats_worker(self):
@@ -363,11 +365,13 @@ class ProfilesWindowUIComponents:
         tcp_bytes_out = 0
         tun_packets_in = 0
         tun_packets_out = 0
+        tcp_packets_in = 0
+        tcp_packets_out = 0
     
         if not os.path.exists(self.status_path):
             print("[DEBUG] VPN is off. Keeping previous statistics.json unchanged.")
             return False
-
+    
         time.sleep(1)
     
         try:
@@ -398,9 +402,20 @@ class ProfilesWindowUIComponents:
                         parts = line.split(",")
                         if len(parts) == 2:
                             tun_packets_out = int(parts[1])
+                    elif line.startswith("TCP/UDP read packets"):
+                        parts = line.split(",")
+                        if len(parts) == 2:
+                            tcp_packets_in = int(parts[1])
+                    elif line.startswith("TCP/UDP write packets"):
+                        parts = line.split(",")
+                        if len(parts) == 2:
+                            tcp_packets_out = int(parts[1])
         except Exception as e:
             print(f"Error reading status file: {e}")
             return True
+    
+        packets_in = tun_packets_in + tcp_packets_in
+        packets_out = tun_packets_out + tcp_packets_out
     
         rw_json = ReadWriteJSON()
         stats = {
@@ -410,6 +425,8 @@ class ProfilesWindowUIComponents:
             "tcp_bytes_out": tcp_bytes_out,
             "tun_packets_in": tun_packets_in,
             "tun_packets_out": tun_packets_out,
+            "packets_in": packets_in,
+            "packets_out": packets_out,
         }
         rw_json.write_statistics(stats)
         return True
