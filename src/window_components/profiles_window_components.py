@@ -363,10 +363,6 @@ class ProfilesWindowUIComponents:
         tun_bytes_out = 0
         tcp_bytes_in = 0
         tcp_bytes_out = 0
-        tun_packets_in = 0
-        tun_packets_out = 0
-        tcp_packets_in = 0
-        tcp_packets_out = 0
     
         if not os.path.exists(self.status_path):
             print("[DEBUG] VPN is off. Keeping previous statistics.json unchanged.")
@@ -394,28 +390,10 @@ class ProfilesWindowUIComponents:
                         parts = line.split(",")
                         if len(parts) == 2:
                             tcp_bytes_out = int(parts[1])
-                    elif line.startswith("TUN/TAP read packets"):
-                        parts = line.split(",")
-                        if len(parts) == 2:
-                            tun_packets_in = int(parts[1])
-                    elif line.startswith("TUN/TAP write packets"):
-                        parts = line.split(",")
-                        if len(parts) == 2:
-                            tun_packets_out = int(parts[1])
-                    elif line.startswith("TCP/UDP read packets"):
-                        parts = line.split(",")
-                        if len(parts) == 2:
-                            tcp_packets_in = int(parts[1])
-                    elif line.startswith("TCP/UDP write packets"):
-                        parts = line.split(",")
-                        if len(parts) == 2:
-                            tcp_packets_out = int(parts[1])
+
         except Exception as e:
             print(f"Error reading status file: {e}")
             return True
-    
-        packets_in = tun_packets_in + tcp_packets_in
-        packets_out = tun_packets_out + tcp_packets_out
     
         rw_json = ReadWriteJSON()
         stats = {
@@ -423,10 +401,6 @@ class ProfilesWindowUIComponents:
             "tun_bytes_out": tun_bytes_out,
             "tcp_bytes_in": tcp_bytes_in,
             "tcp_bytes_out": tcp_bytes_out,
-            "tun_packets_in": tun_packets_in,
-            "tun_packets_out": tun_packets_out,
-            "packets_in": packets_in,
-            "packets_out": packets_out,
         }
         rw_json.write_statistics(stats)
         return True

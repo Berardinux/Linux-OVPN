@@ -15,12 +15,8 @@ class StatisticsWindowUIComponents:
 
         self.bits_in_value_label = None
         self.bits_out_value_label = None
-        self.packets_in_value_label = None
-        self.packets_out_value_label = None
         self.tun_bytes_in_value_label = None
         self.tun_bytes_out_value_label = None
-        self.tun_packets_in_value_label = None
-        self.tun_packets_out_value_label = None
         
         self.update_bits_timeout_id = None
 
@@ -63,7 +59,7 @@ class StatisticsWindowUIComponents:
         self.body_box.set_margin_left(40)
         self.body_box.set_margin_right(40)
 
-        bits_in_label = Gtk.Label(label="BITS IN ⬇️")
+        bits_in_label = Gtk.Label(label="BYTES IN ⬇️")
         bits_in_label.get_style_context().add_class("h6")
         bits_in_label.get_style_context().add_class("color1")
         bits_in_label.set_halign(Gtk.Align.START)
@@ -78,7 +74,7 @@ class StatisticsWindowUIComponents:
         v_spacer = Gtk.Label(label="")
         self.body_box.pack_start(v_spacer, False, False, 0)
 
-        bits_out_label = Gtk.Label(label="BITS OUT ⬆️")
+        bits_out_label = Gtk.Label(label="BYTES OUT ⬆️")
         bits_out_label.get_style_context().add_class("h6")
         bits_out_label.get_style_context().add_class("color1")
         bits_out_label.set_halign(Gtk.Align.START)
@@ -89,36 +85,6 @@ class StatisticsWindowUIComponents:
         self.bits_out_value_label.get_style_context().add_class("color0")
         self.bits_out_value_label.set_halign(Gtk.Align.START)
         self.body_box.pack_start(self.bits_out_value_label, False, False, 0)
-
-        v_spacer = Gtk.Label(label="")
-        self.body_box.pack_start(v_spacer, False, False, 0)
-
-        packets_in_label = Gtk.Label(label="PACKETS IN ⬇️")
-        packets_in_label.get_style_context().add_class("h6")
-        packets_in_label.get_style_context().add_class("color1")
-        packets_in_label.set_halign(Gtk.Align.START)
-        self.body_box.pack_start(packets_in_label, False, False, 0)
-
-        self.packets_in_value_label = Gtk.Label()
-        self.packets_in_value_label.get_style_context().add_class("h6")
-        self.packets_in_value_label.get_style_context().add_class("color0")
-        self.packets_in_value_label.set_halign(Gtk.Align.START)
-        self.body_box.pack_start(self.packets_in_value_label, False, False, 0)
-
-        v_spacer = Gtk.Label(label="")
-        self.body_box.pack_start(v_spacer, False, False, 0)
-
-        packets_out_label = Gtk.Label(label="PACKETS OUT ⬆️")
-        packets_out_label.get_style_context().add_class("h6")
-        packets_out_label.get_style_context().add_class("color1")
-        packets_out_label.set_halign(Gtk.Align.START)
-        self.body_box.pack_start(packets_out_label, False, False, 0)
-
-        self.packets_out_value_label = Gtk.Label()
-        self.packets_out_value_label.get_style_context().add_class("h6")
-        self.packets_out_value_label.get_style_context().add_class("color0")
-        self.packets_out_value_label.set_halign(Gtk.Align.START)
-        self.body_box.pack_start(self.packets_out_value_label, False, False, 0)
 
         v_spacer = Gtk.Label(label="")
         self.body_box.pack_start(v_spacer, False, False, 0)
@@ -153,33 +119,6 @@ class StatisticsWindowUIComponents:
         v_spacer = Gtk.Label(label="")
         self.body_box.pack_start(v_spacer, False, False, 0)
 
-        tun_packets_in_label = Gtk.Label(label="TUN PACKETS IN ⬇️")
-        tun_packets_in_label.get_style_context().add_class("h6")
-        tun_packets_in_label.get_style_context().add_class("color1")
-        tun_packets_in_label.set_halign(Gtk.Align.START)
-        self.body_box.pack_start(tun_packets_in_label, False, False, 0)
-
-        self.tun_packets_in_value_label = Gtk.Label()
-        self.tun_packets_in_value_label.get_style_context().add_class("h6")
-        self.tun_packets_in_value_label.get_style_context().add_class("color0")
-        self.tun_packets_in_value_label.set_halign(Gtk.Align.START)
-        self.body_box.pack_start(self.tun_packets_in_value_label, False, False, 0)
-
-        v_spacer = Gtk.Label(label="")
-        self.body_box.pack_start(v_spacer, False, False, 0)
-
-        tun_packets_out_label = Gtk.Label(label="TUN PACKETS OUT ⬆️")
-        tun_packets_out_label.get_style_context().add_class("h6")
-        tun_packets_out_label.get_style_context().add_class("color1")
-        tun_packets_out_label.set_halign(Gtk.Align.START)
-        self.body_box.pack_start(tun_packets_out_label, False, False, 0)
-
-        self.tun_packets_out_value_label = Gtk.Label()
-        self.tun_packets_out_value_label.get_style_context().add_class("h6")
-        self.tun_packets_out_value_label.get_style_context().add_class("color0")
-        self.tun_packets_out_value_label.set_halign(Gtk.Align.START)
-        self.body_box.pack_start(self.tun_packets_out_value_label, False, False, 0)
-
         self.body_box.show_all()
 
         return self.body_box
@@ -190,12 +129,10 @@ class StatisticsWindowUIComponents:
 
         self.bits_in_value_label.set_text(self.format_bytes(stats.get("tcp_bytes_in", 0)))
         self.bits_out_value_label.set_text(self.format_bytes(stats.get("tcp_bytes_out", 0)))
-        self.packets_in_value_label.set_text(str(stats.get("packets_in", 0)))
-        self.packets_out_value_label.set_text(str(stats.get("packets_out", 0)))
         self.tun_bytes_in_value_label.set_text(self.format_bytes(stats.get("tun_bytes_in", 0)))
         self.tun_bytes_out_value_label.set_text(self.format_bytes(stats.get("tun_bytes_out", 0)))
-        self.tun_packets_in_value_label.set_text(str(stats.get("tun_packets_in", 0)))
-        self.tun_packets_out_value_label.set_text(str(stats.get("tun_packets_out", 0)))
+
+        return True
 
     def start_updating(self, interval_ms=1000):
         if self.update_bits_timeout_id:
