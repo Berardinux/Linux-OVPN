@@ -186,7 +186,16 @@ class ImportedProfileWindowUIComponents:
         return self.footer_box
 
     def on_profiles_btn_click(self, button):
-        ReadWriteJSON().add_profile_to_config(self.profile_name, self.remote_host, self.used_passwd, self.passwd, self.filename)
+        new_profile_name = self.entry_profile_name.get_text().strip()[:16]
+    
+        ReadWriteJSON().add_profile_to_config(
+            new_profile_name,
+            self.remote_host,
+            self.used_passwd,
+            self.passwd,
+            self.filename
+        )
+    
         self.imported_callback()
 
     def on_connect_btn_click(self, button):
