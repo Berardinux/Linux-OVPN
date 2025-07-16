@@ -2,6 +2,7 @@ from types import MethodDescriptorType
 import gi
 import os
 import shutil
+import webbrowser
 gi.require_version("Gtk", "3.0")
 from gi.repository import Gtk, Gdk
 from gi.repository import GdkPixbuf
@@ -113,10 +114,11 @@ class ImportProfileWindowUIComponents:
         label.set_halign(Gtk.Align.START)
         inner_box.pack_start(label, False, False, 0)
 
-        entry = Gtk.Entry()
-        entry.set_text("https://")
-        entry.get_style_context().add_class("entry")
-        inner_box.pack_start(entry, False, False, 0)
+        self.access_server_url = Gtk.Entry()
+        self.access_server_url.set_text("https://")
+        self.access_server_url.get_style_context().add_class("entry")
+        self.access_server_url.connect("changed", self.on_url_changed)
+        inner_box.pack_start(self.access_server_url, False, False, 0)
 
         note = Gtk.Label(label =(
             "Please note that you can only import profile\n"
@@ -134,15 +136,23 @@ class ImportProfileWindowUIComponents:
         footer_box.set_valign(Gtk.Align.END)
         footer_box.set_halign(Gtk.Align.CENTER)
 
-        button = Gtk.Button(label="NEXT")
-        button.get_style_context().add_class("add-wide-footer-btn")
-        button.set_margin_bottom(20)
+        next_button = Gtk.Button(label="NEXT")
+        next_button.get_style_context().add_class("add-wide-footer-btn")
+        next_button.set_margin_bottom(20)
+        next_button.connect("clicked", self.on_next_button_click)
+        footer_box.pack_start(next_button, False, False, 0)
         
-        footer_box.pack_start(button, False, False, 0)
         outer_box.pack_start(inner_box, True, True, 0)
         outer_box.pack_start(footer_box, False, False, 0)
 
         return outer_box
+
+    def on_url_changed(self, entry):
+        self.access_server_url = entry.get_text()
+        print("Access Server URL changed to: " + self.access_server_url)
+
+    def on_next_button_click(self, button):
+        webbrowser.open(self.access_server_url)
 
     def create_file_stack(self):
         outer_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
