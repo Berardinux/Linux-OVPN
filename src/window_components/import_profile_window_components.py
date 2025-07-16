@@ -120,10 +120,17 @@ class ImportProfileWindowUIComponents:
         self.access_server_url.connect("changed", self.on_url_changed)
         inner_box.pack_start(self.access_server_url, False, False, 0)
 
-        note = Gtk.Label(label =(
-            "Please note that you can only import profile\n"
-            "using URL if it is supported by your VPN\n" 
-            "provider"
+        #note = Gtk.Label(label =(
+            #    "Please note that you can only import profile\n"
+            #"using URL if it is supported by your VPN\n" 
+            #"provider"
+            #))
+        note = Gtk.Label(label = (
+            "\nLog into your Access Server and download\n"
+            "your .ovpn file.\n\n"
+
+            "After you are done downloading your .ovpn\n" 
+            "file upload it in the Upload File tab."
             ))
         note.get_style_context().add_class("h5")
         note.get_style_context().add_class("color1")

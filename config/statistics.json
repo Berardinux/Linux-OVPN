@@ -1,6 +1,6 @@
 {
-    "tun_bytes_in": 139722,
-    "tun_bytes_out": 10933,
-    "tcp_bytes_in": 15525,
-    "tcp_bytes_out": 145092
+    "tun_bytes_in": 0,
+    "tun_bytes_out": 0,
+    "tcp_bytes_in": 0,
+    "tcp_bytes_out": 0
 }

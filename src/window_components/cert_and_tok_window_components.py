@@ -109,9 +109,16 @@ class CertAndTokWindowUIComponents:
                 )
         image = Gtk.Image.new_from_pixbuf(pixbuf)
 
-        label = Gtk.Label(label="No external certificates imported")
+        #label = Gtk.Label(label="No external certificates imported")
+        label = Gtk.Label(label=
+                          "Certificates & Tokens do not work in this\n"
+                          "version of LinuxOVPN, I will slowly implement\n"
+                          "these features down the line as I continue to\n"
+                          "work on the application!"
+                          )
         label.set_margin_top(30)
-        label.set_justify(Gtk.Justification.CENTER)
+        #label.set_justify(Gtk.Justification.CENTER)
+        label.set_justify(Gtk.Justification.LEFT)
         label.get_style_context().add_class("label")
         label.get_style_context().add_class("color0")
 

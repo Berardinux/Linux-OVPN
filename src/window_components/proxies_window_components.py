@@ -58,9 +58,16 @@ class ProxiesWindowUIComponents:
                 preserve_aspect_ratio=True
                 )
         image = Gtk.Image.new_from_pixbuf(pixbuf)
-        label = Gtk.Label(label="You have no proxies added yet")
+        #label = Gtk.Label(label="You have no proxies added yet")
+        label = Gtk.Label(label=
+                          "Proxies do not work on this version of \n" 
+                          "LinuxOVPN, I will try to slowly implement \n" 
+                          "these features down the line as I continue \n"
+                          "to work on the application!"
+                          )
         label.set_margin_top(30)
-        label.set_justify(Gtk.Justification.CENTER)
+        #label.set_justify(Gtk.Justification.CENTER)
+        label.set_justify(Gtk.Justification.LEFT)
         label.get_style_context().add_class("label")
         label.get_style_context().add_class("color0")
 
