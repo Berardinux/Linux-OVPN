@@ -2,13 +2,13 @@
 <h4>
   Howdy, Berardinux here!!
   <br><br>
-  LinuxOVPN is my version of the OpenVPN Connect application available on MacOS and Windows. In its current state, you will be able to import “.ovpn” files, edit the profiles once imported, and connect to them through the GUI. You can import and connect to password-protected profiles, and the application encrypts the passwords you enter before storing them. The encryption key for unencrypting your passwords is generated only after you install LinuxOVPN and is stored locally on your system. 
+  &nbsp; &nbsp; LinuxOVPN is my version of the OpenVPN Connect application available on MacOS and Windows. In its current state, you will be able to import “.ovpn” files, edit the profiles once imported, and connect to them through the GUI. You can import and connect to password-protected profiles, and the application encrypts the passwords you enter before storing them. The encryption key for unencrypting your passwords is generated only after you install LinuxOVPN and is stored locally on your system. 
   <br><br>
-  I will continue to work on the application, but my time is limited. I work a full-time job and attend school as well, so progress will be slow. Please share any bugs or problems you find with the application, but it may take me a while to address the issue. If you want to take it into your own hands to improve the application, you are more than welcome to take the code and fork it and try to create an improved version of what I have created so far.
+  &nbsp; &nbsp; I will continue to work on the application, but my time is limited. I work a full-time job and attend school as well, so progress will be slow. Please share any bugs or problems you find with the application, but it may take me a while to address the issue. If you want to take it into your own hands to improve the application, you are more than welcome to take the code and fork it and try to create an improved version of what I have created so far.
   <br><br>
-  Just to inform the users of the application, I am not a professional developer; I just love tinkering with technology. With that being said, I am sure that there are problems with the application, and it was the first time I have implemented encryption into one of my applications, so if there are problems, let me know. I did the best I could with my current abilities and knowledge.
+  &nbsp; &nbsp; Just to inform the users of the application, I am not a professional developer; I just love tinkering with technology. With that being said, I am sure that there are problems with the application, and it was the first time I have implemented encryption into one of my applications, so if there are problems, let me know. I did the best I could with my current abilities and knowledge.
   <br><br>
-  The reason I created this application is that I believe the Linux operating system is amazing, and I would like to give back to the open-source community that has inspired my love for technology.
+  &nbsp; &nbsp; The reason I created this application is that I believe the Linux operating system is amazing, and I would like to give back to the open-source community that has inspired my love for technology.
   <br><br>
   Thanks, Berardinux!
 </h4>
