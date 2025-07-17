@@ -1,9 +1,4 @@
 <h2>Welcome to a LinuxOVPN!</h1>
-<h3>Profiles window</h3>
-<img src="https://github.com/Berardinux/Linux-OVPN/blob/main/images/LinuxOVPN-0.png" alt="Alt text" width="300"/>
-<h3>Import Profile window Via URL</h3>
-<img src="https://github.com/Berardinux/Linux-OVPN/blob/main/images/LinuxOVPN-1.png">
-
 <h4>
   Howdy, Berardinux here!!
   <br><br>
@@ -31,3 +26,27 @@
 <h4>Run this to uninstall LinuxOVPN.</h4>
 <pre><code>sudo /opt/LinuxOVPN/scripts/uninstall.sh</code></pre>
 <h4>You can also uninstall LinuxOVPN through the application at the bottom of the settings window.</h4>
+<br>
+<h3>Profiles window</h3>
+<img src="https://github.com/Berardinux/Linux-OVPN/blob/main/images/LinuxOVPN-0.png">
+<br>
+<h3>Import Profile window Via URL</h3>
+<img src="https://github.com/Berardinux/Linux-OVPN/blob/main/images/LinuxOVPN-1.png">
+<br>
+<h3>Import Profile window Upload File</h3>
+<img src="https://github.com/Berardinux/Linux-OVPN/blob/main/images/LinuxOVPN-2.png">
+<br>
+<h3>Imported Profile window</h3>
+<img src="https://github.com/Berardinux/Linux-OVPN/blob/main/images/LinuxOVPN-3.png">
+<br>
+<h3>Profiles window connected</h3>
+<img src="https://github.com/Berardinux/Linux-OVPN/blob/main/images/LinuxOVPN-4.png">
+<br>
+<h3>Side bar</h3>
+<img src="https://github.com/Berardinux/Linux-OVPN/blob/main/images/LinuxOVPN-5.png">
+<br>
+<h3>Statistics</h3>
+<img src="https://github.com/Berardinux/Linux-OVPN/blob/main/images/LinuxOVPN-6.png">
+<br>
+<h3>Profiles window with imported profile</h3>
+<img src="https://github.com/Berardinux/Linux-OVPN/blob/main/images/LinuxOVPN-7.png">
