@@ -13,12 +13,12 @@
   Thanks, Berardinux!
 </h4>
 <br>
-<h3>Instulation:</h3>
+<h3>Installation:</h3>
 <h4>Run this in the directory where you would like to download the files for the application.</h4>
-<code>git clone https://github.com/Berardinux/Linux-OVPN.git</code>
+<pre><code>git clone https://github.com/Berardinux/Linux-OVPN.git</code></pre>
 <br>
 <h4>To install the application, go into the download directory and run this next command.</h4>
-<code>sudo ./install.sh</code>
+<pre><code>sudo ./install.sh</code></pre>
 <br>
 <h4>
   Go through the two menus asking whether you would like to install openvpn and LinuxOVPN, type “Y” or just hit enter on both and it will install the application and its dependencies. Once installed, you can hit your meta key on your keyboard and type LinuxOVPN and it should pop up and you should be able to run it from there. 
@@ -26,6 +26,6 @@
 <br>
 <h3>Uninstall:</h3>
 <h4>Run this to uninstall LinuxOVPN.</h4>
-<code>sudo /opt/LinuxOVPN/scripts/uninstall.sh</code>
+<pre><code>sudo /opt/LinuxOVPN/scripts/uninstall.sh</code></pre>
 <br>
 <h4>You can also uninstall LinuxOVPN through the application at the bottom of the settings window.</h4>
