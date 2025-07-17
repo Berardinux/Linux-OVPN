@@ -1,5 +1,8 @@
 <h2>Welcome to a LinuxOVPN!</h1>
+<h3>Profiles window</h3>
 <img src="https://github.com/Berardinux/Linux-OVPN/blob/main/images/LinuxOVPN-0.png" alt="Alt text" width="300"/>
+<h3>Import Profile window Via URL</h3>
+<img src="https://github.com/Berardinux/Linux-OVPN/blob/main/images/LinuxOVPN-1.png">
 
 <h4>
   Howdy, Berardinux here!!
