@@ -27,6 +27,7 @@
 <pre><code>sudo /opt/LinuxOVPN/scripts/uninstall.sh</code></pre>
 <h4>You can also uninstall LinuxOVPN through the application at the bottom of the settings window.</h4>
 <br>
+<h2>Pictures of the application!</h2>
 <h3>Profiles window</h3>
 <img src="https://github.com/Berardinux/Linux-OVPN/blob/main/images/LinuxOVPN-0.png">
 <br>
