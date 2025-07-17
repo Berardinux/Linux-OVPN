@@ -1,5 +1,5 @@
 <h2>Welcome to a LinuxOVPN!</h1>
-<img src="image/LinuxOVPN-0.png" alt="Alt text" width="300"/>
+<img src="https://github.com/Berardinux/Linux-OVPN/blob/main/images/LinuxOVPN-0.png" alt="Alt text" width="300"/>
 
 <h4>
   Howdy, Berardinux here!!
